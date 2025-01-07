@@ -4,17 +4,33 @@ export interface Repository {
   id: number;
   name: string;
   full_name: string;
-  description: string | null;
+  private: boolean;
   owner: {
     login: string;
+    id: number;
     avatar_url: string;
+    url: string;
   };
+  html_url: string;
+  description: string | null;
+  fork: boolean;
+  url: string;
+  created_at: string;
+  updated_at: string;
+  pushed_at: string;
+  homepage: string | null;
+  size: number;
   stargazers_count: number;
+  watchers_count: number;
+  language: string | null;
   forks_count: number;
   open_issues_count: number;
-  updated_at: string;
-  html_url: string;
-  homepage: string | null;
+  master_branch?: string;
+  default_branch: string;
+  score?: number;
+  archived: boolean;
+  has_issues: boolean;
+  has_releases?: boolean;
   topics: string[];
 }
 
@@ -66,6 +82,23 @@ export interface Release {
   published_at: string;
   html_url: string;
   body: string;
+  author: {
+    login: string;
+    avatar_url: string;
+  };
+}
+
+export interface Commit {
+  sha: string;
+  html_url: string;
+  commit: {
+    author: {
+      name: string;
+      email: string;
+      date: string;
+    };
+    message: string;
+  };
   author: {
     login: string;
     avatar_url: string;
@@ -197,6 +230,33 @@ export class GitHubAPI {
     
     return {
       data: data as Release[],
+      hasNextPage: nextPage.data.length > 0,
+    };
+  }
+
+  async getCommits(
+    owner: string,
+    repo: string,
+    page: number = 1,
+    per_page: number = 10
+  ): Promise<{ data: Commit[]; hasNextPage: boolean }> {
+    const { data } = await this.octokit.repos.listCommits({
+      owner,
+      repo,
+      page,
+      per_page,
+    });
+    
+    // Check if there's a next page by fetching one more item
+    const nextPage = await this.octokit.repos.listCommits({
+      owner,
+      repo,
+      page: page + 1,
+      per_page: 1,
+    });
+    
+    return {
+      data: data as Commit[],
       hasNextPage: nextPage.data.length > 0,
     };
   }

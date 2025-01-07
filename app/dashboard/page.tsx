@@ -2,11 +2,11 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { GitHubAPI, Repository, Issue, PullRequest, Release } from "@/lib/github";
+import { GitHubAPI, Repository, Issue, PullRequest, Release, Commit } from "@/lib/github";
 import { RepositoryCard } from "@/components/repository-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Loader2, Maximize2 } from "lucide-react";
+import { Search, Plus, Loader2, Maximize2, ExternalLink, ArrowDown, ChevronDown, MoreHorizontal } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ActivityDialog } from "@/components/activity-dialog";
 import {
@@ -50,12 +50,19 @@ export default function Dashboard() {
     hasNextPage: false,
     isLoading: false,
   });
+  const [commits, setCommits] = useState<ActivityState>({
+    data: [],
+    page: 1,
+    hasNextPage: false,
+    isLoading: false,
+  });
   const [isSearching, setIsSearching] = useState(false);
 
-  const [openDialog, setOpenDialog] = useState<"issues" | "pullRequests" | "releases" | null>(null);
+  const [openDialog, setOpenDialog] = useState<"issues" | "pullRequests" | "releases" | "commits" | null>(null);
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
   const [filteredPRs, setFilteredPRs] = useState<PullRequest[]>([]);
   const [filteredReleases, setFilteredReleases] = useState<Release[]>([]);
+  const [filteredCommits, setFilteredCommits] = useState<Commit[]>([]);
   const [issueLabels, setIssueLabels] = useState<string[]>([]);
   const [prLabels, setPRLabels] = useState<string[]>([]);
 
@@ -64,6 +71,7 @@ export default function Dashboard() {
       setIssues({ data: [], page: 1, hasNextPage: false, isLoading: true });
       setPullRequests({ data: [], page: 1, hasNextPage: false, isLoading: true });
       setReleases({ data: [], page: 1, hasNextPage: false, isLoading: true });
+      setCommits({ data: [], page: 1, hasNextPage: false, isLoading: true });
 
       const github = new GitHubAPI(session.accessToken);
       const [owner, repo] = selectedRepo.full_name.split("/");
@@ -72,8 +80,9 @@ export default function Dashboard() {
         github.getIssues(owner, repo, 1),
         github.getPullRequests(owner, repo, 1),
         github.getReleases(owner, repo, 1),
+        github.getCommits(owner, repo, 1),
       ])
-        .then(([issuesData, prsData, releasesData]) => {
+        .then(([issuesData, prsData, releasesData, commitsData]) => {
           setIssues({
             data: issuesData.data,
             page: 1,
@@ -90,6 +99,12 @@ export default function Dashboard() {
             data: releasesData.data,
             page: 1,
             hasNextPage: releasesData.hasNextPage,
+            isLoading: false,
+          });
+          setCommits({
+            data: commitsData.data,
+            page: 1,
+            hasNextPage: commitsData.hasNextPage,
             isLoading: false,
           });
         })
@@ -124,7 +139,7 @@ export default function Dashboard() {
   }, [pullRequests.data]);
 
   const loadMore = async (
-    type: "issues" | "pullRequests" | "releases",
+    type: "issues" | "pullRequests" | "releases" | "commits",
     currentState: ActivityState,
     setState: (state: ActivityState) => void
   ) => {
@@ -146,6 +161,9 @@ export default function Dashboard() {
           break;
         case "releases":
           response = await github.getReleases(owner, repo, nextPage);
+          break;
+        case "commits":
+          response = await github.getCommits(owner, repo, nextPage);
           break;
       }
 
@@ -190,10 +208,11 @@ export default function Dashboard() {
       setIssues({ data: [], page: 1, hasNextPage: false, isLoading: false });
       setPullRequests({ data: [], page: 1, hasNextPage: false, isLoading: false });
       setReleases({ data: [], page: 1, hasNextPage: false, isLoading: false });
+      setCommits({ data: [], page: 1, hasNextPage: false, isLoading: false });
     }
   };
 
-  const handleSearchDialog = (type: "issues" | "pullRequests" | "releases", query: string) => {
+  const handleSearchDialog = (type: "issues" | "pullRequests" | "releases" | "commits", query: string) => {
     const searchLower = query.toLowerCase();
     switch (type) {
       case "issues":
@@ -218,6 +237,13 @@ export default function Dashboard() {
             release.name?.toLowerCase().includes(searchLower) ||
             release.tag_name.toLowerCase().includes(searchLower) ||
             release.body?.toLowerCase().includes(searchLower)
+          )
+        );
+        break;
+      case "commits":
+        setFilteredCommits(
+          commits.data.filter((commit) =>
+            commit.commit.message.toLowerCase().includes(searchLower)
           )
         );
         break;
@@ -274,17 +300,17 @@ export default function Dashboard() {
     onLoadMore,
     renderItem,
   }: {
-    title: string;
+    title: React.ReactNode;
     items: any[];
     state: ActivityState;
-    type: "issues" | "pullRequests" | "releases";
+    type: "issues" | "pullRequests" | "releases" | "commits";
     onLoadMore: () => void;
     renderItem: (item: any) => React.ReactNode;
   }) => (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>{title}</span>
+          {title}
           <div className="flex items-center gap-2">
             <span className="text-sm font-normal text-muted-foreground">
               {items.length} items
@@ -301,27 +327,37 @@ export default function Dashboard() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[340px] pr-4">
           <div className="space-y-2 pr-4">
             {items.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
-                No {title.toLowerCase()}
+                No {type}
               </p>
             ) : (
               <>
                 <div className="space-y-2">{items.map(renderItem)}</div>
                 {state.hasNextPage && (
-                  <Button
-                    variant="ghost"
-                    className="w-full mt-2"
-                    onClick={onLoadMore}
-                    disabled={state.isLoading}
-                  >
-                    {state.isLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : null}
-                    Load More
-                  </Button>
+                  <div className="flex justify-center mt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onLoadMore}
+                      disabled={state.isLoading}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                    >
+                      {state.isLoading ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowDown className="h-3 w-3" />
+                          Load more
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 )}
               </>
             )}
@@ -445,100 +481,242 @@ export default function Dashboard() {
           <h2 className="text-2xl font-semibold tracking-tight mt-12 mb-6">
             Activity for {selectedRepo.full_name}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Issues */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Commits */}
             <ActivityList
-              title="Open Issues"
-              items={issues.data}
-              state={issues}
-              type="issues"
-              onLoadMore={() => loadMore("issues", issues, setIssues)}
-              renderItem={(issue: Issue) => (
-                <a
-                  key={issue.id}
-                  href={issue.html_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-2 hover:bg-muted rounded-lg transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={issue.user.avatar_url}
-                      alt={issue.user.login}
-                      className="w-6 h-6 rounded-full"
-                    />
-                    <span className="text-sm font-medium line-clamp-1">
-                      {issue.title}
-                    </span>
-                  </div>
-                </a>
-              )}
-            />
-
-            {/* Pull Requests */}
-            <ActivityList
-              title="Pull Requests"
-              items={pullRequests.data}
-              state={pullRequests}
-              type="pullRequests"
-              onLoadMore={() =>
-                loadMore("pullRequests", pullRequests, setPullRequests)
+              title={
+                <div className="flex items-center justify-between">
+                  <span>Recent Commits</span>
+                  <a
+                    href={`${selectedRepo.html_url}/commits`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 hover:bg-muted"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </a>
+                </div>
               }
-              renderItem={(pr: PullRequest) => (
-                <a
-                  key={pr.id}
-                  href={pr.html_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-2 hover:bg-muted rounded-lg transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={pr.user.avatar_url}
-                      alt={pr.user.login}
-                      className="w-6 h-6 rounded-full"
-                    />
-                    <span className="text-sm font-medium line-clamp-1">
-                      {pr.title}
-                    </span>
-                  </div>
-                </a>
-              )}
-            />
+              items={commits.data}
+              state={commits}
+              type="commits"
+              onLoadMore={() => loadMore("commits", commits, setCommits)}
+              renderItem={(commit: Commit) => {
+                const title = commit.commit.message.split('\n')[0].trim();
+                const authorName = commit.author?.login || commit.commit.author.name || 'Unknown';
+                const avatarUrl = commit.author?.avatar_url || 'https://github.com/identicons/default.png';
 
-            {/* Releases */}
-            <ActivityList
-              title="Recent Releases"
-              items={releases.data}
-              state={releases}
-              type="releases"
-              onLoadMore={() => loadMore("releases", releases, setReleases)}
-              renderItem={(release: Release) => (
-                <a
-                  key={release.id}
-                  href={release.html_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-2 hover:bg-muted rounded-lg transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={release.author.avatar_url}
-                      alt={release.author.login}
-                      className="w-6 h-6 rounded-full"
-                    />
-                    <div>
-                      <div className="text-sm font-medium line-clamp-1">
-                        {release.name || release.tag_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(release.published_at).toLocaleDateString()}
+                return (
+                  <a
+                    key={commit.sha}
+                    href={commit.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-2 hover:bg-muted rounded-lg transition-colors h-[60px]"
+                  >
+                    <div className="flex items-start gap-2">
+                      <img
+                        src={avatarUrl}
+                        alt={authorName}
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium line-clamp-1">
+                          {title}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span>{authorName}</span>
+                          <span>•</span>
+                          <span>{new Date(commit.commit.author.date).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{commit.sha.substring(0, 7)}</code>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </a>
-              )}
+                  </a>
+                );
+              }}
             />
+
+            {/* Only show Issues card if issues are enabled */}
+            {selectedRepo.has_issues && (
+              <ActivityList
+                title={
+                  <div className="flex items-center justify-between">
+                    <span>Open Issues</span>
+                    <a
+                      href={`${selectedRepo.html_url}/issues`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 hover:bg-muted"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </a>
+                  </div>
+                }
+                items={issues.data}
+                state={issues}
+                type="issues"
+                onLoadMore={() => loadMore("issues", issues, setIssues)}
+                renderItem={(issue: Issue) => (
+                  <a
+                    key={issue.id}
+                    href={issue.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-2 hover:bg-muted rounded-lg transition-colors h-[60px]"
+                  >
+                    <div className="flex items-start gap-2">
+                      <img
+                        src={issue.user.avatar_url}
+                        alt={issue.user.login}
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium line-clamp-1">
+                          {issue.title}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span>#{issue.number}</span>
+                          <span>•</span>
+                          <span>{issue.user.login}</span>
+                          <span>•</span>
+                          <span>opened {new Date(issue.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                )}
+              />
+            )}
+
+            {/* Only show Pull Requests card if PRs are enabled */}
+            {!selectedRepo.archived && (
+              <ActivityList
+                title={
+                  <div className="flex items-center justify-between">
+                    <span>Pull Requests</span>
+                    <a
+                      href={`${selectedRepo.html_url}/pulls`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 hover:bg-muted"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </a>
+                  </div>
+                }
+                items={pullRequests.data}
+                state={pullRequests}
+                type="pullRequests"
+                onLoadMore={() => loadMore("pullRequests", pullRequests, setPullRequests)}
+                renderItem={(pr: PullRequest) => (
+                  <a
+                    key={pr.id}
+                    href={pr.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-2 hover:bg-muted rounded-lg transition-colors h-[60px]"
+                  >
+                    <div className="flex items-start gap-2">
+                      <img
+                        src={pr.user.avatar_url}
+                        alt={pr.user.login}
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium line-clamp-1">
+                          {pr.title}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span>#{pr.number}</span>
+                          <span>•</span>
+                          <span>{pr.user.login}</span>
+                          <span>•</span>
+                          <span>{pr.state === 'open' ? 'opened' : pr.state} {new Date(pr.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                )}
+              />
+            )}
+
+            {/* Only show Releases card if releases are enabled */}
+            {selectedRepo.has_releases !== false && (
+              <ActivityList
+                title={
+                  <div className="flex items-center justify-between">
+                    <span>Recent Releases</span>
+                    <a
+                      href={`${selectedRepo.html_url}/releases`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 hover:bg-muted"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </a>
+                  </div>
+                }
+                items={releases.data}
+                state={releases}
+                type="releases"
+                onLoadMore={() => loadMore("releases", releases, setReleases)}
+                renderItem={(release: Release) => (
+                  <a
+                    key={release.id}
+                    href={release.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-2 hover:bg-muted rounded-lg transition-colors h-[60px]"
+                  >
+                    <div className="flex items-start gap-2">
+                      <img
+                        src={release.author.avatar_url}
+                        alt={release.author.login}
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium line-clamp-1">
+                          {release.name || release.tag_name}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <code className="bg-muted px-1 py-0.5 rounded">{release.tag_name}</code>
+                          <span>•</span>
+                          <span>{release.author.login}</span>
+                          <span>•</span>
+                          <span>published {new Date(release.published_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                )}
+              />
+            )}
           </div>
         </>
       )}
@@ -577,6 +755,16 @@ export default function Dashboard() {
         data={filteredReleases.length > 0 ? filteredReleases : releases.data}
         isLoading={releases.isLoading}
         onSearch={(query) => handleSearchDialog("releases", query)}
+      />
+
+      <ActivityDialog
+        title="Recent Commits"
+        isOpen={openDialog === "commits"}
+        onClose={() => setOpenDialog(null)}
+        type="commits"
+        data={filteredCommits.length > 0 ? filteredCommits : commits.data}
+        isLoading={commits.isLoading}
+        onSearch={(query) => handleSearchDialog("commits", query)}
       />
     </div>
   );

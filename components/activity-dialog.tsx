@@ -20,7 +20,7 @@ interface ActivityDialogProps {
   title: string;
   isOpen: boolean;
   onClose: () => void;
-  type: "issues" | "pullRequests" | "releases";
+  type: "issues" | "pullRequests" | "releases" | "commits";
   data: any[];
   labels?: string[];
   isLoading?: boolean;
@@ -185,6 +185,57 @@ export function ActivityDialog({
             ))}
           </div>
         );
+
+      case "commits":
+        return (
+          <div className="space-y-4">
+            {data.map((commit: any) => {
+              // Split commit message into title and description
+              const [title, ...descriptionLines] = commit.commit.message.split('\n').map(line => line.trim());
+              const filteredDescLines = descriptionLines.filter(line => line.length > 0);
+              const hasMoreLines = filteredDescLines.length > 2;
+              const description = filteredDescLines.slice(0, 2).join('\n');
+              
+              // Handle null author cases
+              const authorName = commit.author?.login || commit.commit.author.name || 'Unknown';
+              const avatarUrl = commit.author?.avatar_url || 'https://github.com/identicons/default.png';
+
+              return (
+                <a
+                  key={commit.sha}
+                  href={commit.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={avatarUrl}
+                      alt={authorName}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-base">{title}</h4>
+                      {description && (
+                        <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                          {description}
+                          {hasMoreLines && " ..."}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                        <span className="font-medium">{authorName}</span>
+                        <span>•</span>
+                        <span>committed on {new Date(commit.commit.author.date).toLocaleDateString()} at {new Date(commit.commit.author.date).toLocaleTimeString()}</span>
+                        <span>•</span>
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">{commit.sha.substring(0, 7)}</code>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        );
     }
   };
 
@@ -208,7 +259,7 @@ export function ActivityDialog({
                 />
               </div>
             </div>
-            {type !== "releases" && (
+            {type !== "releases" && type !== "commits" && (
               <>
                 <Select value={selectedFilter} onValueChange={handleFilterChange}>
                   <SelectTrigger className="w-[150px]">
