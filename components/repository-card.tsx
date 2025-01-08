@@ -2,7 +2,7 @@
 
 import { Repository } from "@/lib/github";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock } from "lucide-react";
+import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -50,6 +50,37 @@ function getLanguageColor(language: string): string {
   return colors[language] || "#858585";
 }
 
+// Helper function to format the time difference
+function getTimeAgo(date: string) {
+  const now = new Date();
+  const updatedAt = new Date(date);
+  const diffInSeconds = Math.floor((now.getTime() - updatedAt.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds} seconds ago`;
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} min${diffInMinutes > 1 ? 's' : ''} ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays === 1) {
+    return 'yesterday';
+  }
+  if (diffInDays < 7) {
+    return `${diffInDays} days ago`;
+  }
+
+  return updatedAt.toLocaleDateString();
+}
+
 export function RepositoryCard({
   repository,
   onSelect,
@@ -74,14 +105,14 @@ export function RepositoryCard({
         onClick={onSelect}
       >
         <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3">
             <img
               src={repository.owner.avatar_url}
               alt={repository.owner.login}
-              className="w-8 h-8 rounded-full"
+              className="w-10 h-10 rounded-full"
             />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold leading-none truncate">
+              <h3 className="font-semibold text-base leading-tight truncate mb-0.5">
                 {repository.full_name}
               </h3>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
@@ -152,14 +183,14 @@ export function RepositoryCard({
       <CardContent className="pt-6">
         <div className="space-y-2">
           {/* Header with avatar and name */}
-          <div className="flex items-start gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-2">
             <img
               src={repository.owner.avatar_url}
               alt={repository.owner.login}
-              className="w-8 h-8 rounded-full"
+              className="w-10 h-10 rounded-full"
             />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold leading-none truncate">
+              <h3 className="font-semibold text-base leading-tight truncate mb-0.5">
                 {repository.full_name}
               </h3>
               <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
@@ -245,11 +276,23 @@ export function RepositoryCard({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-1">
-                      <GitFork className="h-4 w-4" />
-                      <span>{repository.forks_count.toLocaleString()}</span>
+                      <GitFork className="w-4 h-4" />
+                      <span>{repository.forks_count}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>Forks</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5">
+                      <Activity className="w-4 h-4 text-primary animate-pulse" />
+                      <span>{getTimeAgo(repository.pushed_at)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Last updated</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
