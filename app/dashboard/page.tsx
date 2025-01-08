@@ -315,7 +315,7 @@ export default function Dashboard() {
           {title}
           <div className="flex items-center gap-2">
             <span className="text-sm font-normal text-muted-foreground">
-              {items.length} items
+              {items.length} {type === "pullRequests" ? "pull requests" : type}
             </span>
             <Button
               variant="ghost"
