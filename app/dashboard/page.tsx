@@ -467,15 +467,8 @@ export default function Dashboard() {
       </div>
 
       {/* Tracked Repositories */}
-      <div
-        className={cn(
-          "grid gap-4",
-          trackedRepos.length === 0
-            ? "place-items-center h-[200px]"
-            : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-        )}
-      >
-        {trackedRepos.length === 0 ? (
+      {trackedRepos.length === 0 ? (
+        <div className="flex items-center justify-center h-[200px]">
           <div className="text-center">
             <h3 className="text-lg font-medium mb-2">
               No repositories tracked yet
@@ -484,8 +477,10 @@ export default function Dashboard() {
               Start by adding repositories you want to monitor
             </p>
           </div>
-        ) : (
-          trackedRepos.map((repo) => (
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+          {trackedRepos.map((repo) => (
             <RepositoryCard
               key={repo.id}
               repository={repo}
@@ -494,9 +489,9 @@ export default function Dashboard() {
               isTracked={true}
               isMinimized={isMinimized}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Selected Repository Details */}
       {selectedRepo && (
@@ -504,7 +499,7 @@ export default function Dashboard() {
           <h2 className="text-2xl font-semibold tracking-tight mt-12 mb-6">
             Activity for {selectedRepo.full_name}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Commits */}
             <ActivityList
               title={
