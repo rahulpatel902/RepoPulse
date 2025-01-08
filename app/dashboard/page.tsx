@@ -6,7 +6,7 @@ import { GitHubAPI, Repository, Issue, PullRequest, Release, Commit } from "@/li
 import { RepositoryCard } from "@/components/repository-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Loader2, Maximize2, ExternalLink, ArrowDown, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Search, Plus, Loader2, Maximize2, Minimize2, ExternalLink, ArrowDown, ChevronDown, MoreHorizontal } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ActivityDialog } from "@/components/activity-dialog";
 import {
@@ -57,6 +57,7 @@ export default function Dashboard() {
     isLoading: false,
   });
   const [isSearching, setIsSearching] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const [openDialog, setOpenDialog] = useState<"issues" | "pullRequests" | "releases" | "commits" | null>(null);
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
@@ -383,9 +384,27 @@ export default function Dashboard() {
 
       {/* Search and Add Repository */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          Your Repositories
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Your Repositories
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 -mt-0.5"
+            onClick={() => setIsMinimized(!isMinimized)}
+            title={isMinimized ? "Expand repositories" : "Minimize repositories"}
+          >
+            {isMinimized ? (
+              <Maximize2 className="h-4 w-4" />
+            ) : (
+              <Minimize2 className="h-4 w-4" />
+            )}
+            <span className="sr-only">
+              {isMinimized ? "Expand repositories" : "Minimize repositories"}
+            </span>
+          </Button>
+        </div>
         <Dialog>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -473,6 +492,7 @@ export default function Dashboard() {
               onSelect={() => setSelectedRepo(repo)}
               onRemove={() => handleRemoveRepository(repo)}
               isTracked={true}
+              isMinimized={isMinimized}
             />
           ))
         )}
@@ -732,9 +752,11 @@ export default function Dashboard() {
         data={filteredIssues.length > 0 ? filteredIssues : issues.data}
         labels={issueLabels}
         isLoading={issues.isLoading}
+        hasNextPage={issues.hasNextPage}
         onSearch={(query) => handleSearchDialog("issues", query)}
         onFilter={(filter) => handleFilter("issues", filter)}
         onLabelSelect={(label) => handleLabelSelect("issues", label)}
+        onLoadMore={() => loadMore("issues", issues, setIssues)}
       />
 
       <ActivityDialog
@@ -745,9 +767,11 @@ export default function Dashboard() {
         data={filteredPRs.length > 0 ? filteredPRs : pullRequests.data}
         labels={prLabels}
         isLoading={pullRequests.isLoading}
+        hasNextPage={pullRequests.hasNextPage}
         onSearch={(query) => handleSearchDialog("pullRequests", query)}
         onFilter={(filter) => handleFilter("pullRequests", filter)}
         onLabelSelect={(label) => handleLabelSelect("pullRequests", label)}
+        onLoadMore={() => loadMore("pullRequests", pullRequests, setPullRequests)}
       />
 
       <ActivityDialog
@@ -757,7 +781,9 @@ export default function Dashboard() {
         type="releases"
         data={filteredReleases.length > 0 ? filteredReleases : releases.data}
         isLoading={releases.isLoading}
+        hasNextPage={releases.hasNextPage}
         onSearch={(query) => handleSearchDialog("releases", query)}
+        onLoadMore={() => loadMore("releases", releases, setReleases)}
       />
 
       <ActivityDialog
@@ -767,7 +793,9 @@ export default function Dashboard() {
         type="commits"
         data={filteredCommits.length > 0 ? filteredCommits : commits.data}
         isLoading={commits.isLoading}
+        hasNextPage={commits.hasNextPage}
         onSearch={(query) => handleSearchDialog("commits", query)}
+        onLoadMore={() => loadMore("commits", commits, setCommits)}
       />
     </div>
   );

@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { Search, Filter, Loader2, Tag, Clock } from "lucide-react";
+import { Search, Filter, Loader2, Tag, Clock, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ActivityDialogProps {
@@ -24,9 +24,11 @@ interface ActivityDialogProps {
   data: any[];
   labels?: string[];
   isLoading?: boolean;
+  hasNextPage?: boolean;
   onSearch: (query: string) => void;
   onFilter?: (filter: string) => void;
   onLabelSelect?: (label: string) => void;
+  onLoadMore?: () => void;
 }
 
 export function ActivityDialog({
@@ -37,9 +39,11 @@ export function ActivityDialog({
   data,
   labels = [],
   isLoading = false,
+  hasNextPage = false,
   onSearch,
   onFilter,
   onLabelSelect,
+  onLoadMore,
 }: ActivityDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
@@ -303,6 +307,19 @@ export function ActivityDialog({
               </div>
             ) : (
               renderContent()
+            )}
+            {hasNextPage && data.length < 100 && !isLoading && (
+              <div className="flex justify-center mt-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLoadMore}
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                >
+                  <ArrowDown className="h-3 w-3" />
+                  Load more
+                </Button>
+              </div>
             )}
           </ScrollArea>
         </div>

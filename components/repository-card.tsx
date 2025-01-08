@@ -2,7 +2,7 @@
 
 import { Repository } from "@/lib/github";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, GitFork, X, ExternalLink, Globe, Link2 } from "lucide-react";
+import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,6 +13,41 @@ interface RepositoryCardProps {
   onSelect?: () => void;
   onRemove?: () => void;
   isTracked?: boolean;
+  isMinimized?: boolean;
+}
+
+// Helper function to determine text color based on background
+function getContrastColor(hexcolor: string) {
+  const r = parseInt(hexcolor.slice(0, 2), 16);
+  const g = parseInt(hexcolor.slice(2, 4), 16);
+  const b = parseInt(hexcolor.slice(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000000" : "#ffffff";
+}
+
+// Helper function to get language color
+function getLanguageColor(language: string): string {
+  const colors: { [key: string]: string } = {
+    "JavaScript": "#f1e05a",
+    "TypeScript": "#3178c6",
+    "Python": "#3572A5",
+    "Java": "#b07219",
+    "C++": "#f34b7d",
+    "C#": "#178600",
+    "PHP": "#4F5D95",
+    "Ruby": "#701516",
+    "Go": "#00ADD8",
+    "Rust": "#dea584",
+    "Swift": "#ffac45",
+    "Kotlin": "#A97BFF",
+    "Dart": "#00B4AB",
+    "HTML": "#e34c26",
+    "CSS": "#563d7c",
+    "Shell": "#89e051",
+    "Vue": "#41b883",
+    "React": "#61dafb",
+  };
+  return colors[language] || "#858585";
 }
 
 export function RepositoryCard({
@@ -20,6 +55,7 @@ export function RepositoryCard({
   onSelect,
   onRemove,
   isTracked = false,
+  isMinimized = false,
 }: RepositoryCardProps) {
   const handleExternalClick = (e: React.MouseEvent, url: string | null) => {
     e.stopPropagation();
@@ -27,6 +63,70 @@ export function RepositoryCard({
       window.open(url, '_blank');
     }
   };
+
+  if (isMinimized) {
+    return (
+      <Card
+        className={cn(
+          "transition-colors hover:bg-muted/50 cursor-pointer group relative",
+          onSelect && "hover:border-primary"
+        )}
+        onClick={onSelect}
+      >
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <img
+              src={repository.owner.avatar_url}
+              alt={repository.owner.login}
+              className="w-8 h-8 rounded-full"
+            />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold leading-none truncate">
+                {repository.full_name}
+              </h3>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                <span>by {repository.owner.login}</span>
+                <span>•</span>
+                <div className="flex items-center gap-1">
+                  {repository.private ? (
+                    <Lock className="w-3.5 h-3.5" />
+                  ) : (
+                    <Globe className="w-3.5 h-3.5" />
+                  )}
+                  <span>{repository.private ? "Private" : "Public"}</span>
+                </div>
+                {repository.language && (
+                  <>
+                    <span>•</span>
+                    <div className="flex items-center gap-1.5">
+                      <div 
+                        className="w-2.5 h-2.5 rounded-full" 
+                        style={{ backgroundColor: getLanguageColor(repository.language) }}
+                      />
+                      <span>{repository.language}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            {isTracked && onRemove && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+              >
+                <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card
@@ -62,8 +162,17 @@ export function RepositoryCard({
               <h3 className="font-semibold leading-none truncate">
                 {repository.full_name}
               </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                by {repository.owner.login}
+              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                <span>by {repository.owner.login}</span>
+                <span>•</span>
+                <div className="flex items-center gap-1">
+                  {repository.private ? (
+                    <Lock className="w-3.5 h-3.5" />
+                  ) : (
+                    <Globe className="w-3.5 h-3.5" />
+                  )}
+                  <span>{repository.private ? "Private" : "Public"}</span>
+                </div>
               </p>
             </div>
           </div>
@@ -75,30 +184,39 @@ export function RepositoryCard({
 
           {/* Topics */}
           {repository.topics && repository.topics.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {repository.topics.slice(0, 4).map((topic) => (
+            <div className="flex flex-wrap gap-1.5">
+              {repository.topics.map((topic) => (
                 <Badge
                   key={topic}
                   variant="secondary"
-                  className="text-xs"
+                  className="text-xs px-2 py-0.5 bg-primary/10 hover:bg-primary/20 transition-colors"
                 >
                   {topic}
                 </Badge>
               ))}
-              {repository.topics.length > 4 && (
-                <Badge
-                  variant="secondary"
-                  className="text-xs"
-                >
-                  +{repository.topics.length - 4} more
-                </Badge>
-              )}
             </div>
           )}
 
           {/* Stats and links */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              {repository.language && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1.5">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: getLanguageColor(repository.language) }}
+                        />
+                        <span>{repository.language}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Primary Language</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
