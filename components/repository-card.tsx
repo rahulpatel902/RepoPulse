@@ -78,7 +78,11 @@ function getTimeAgo(date: string) {
     return `${diffInDays} days ago`;
   }
 
-  return updatedAt.toLocaleDateString();
+  return updatedAt.toLocaleDateString('en-US', { 
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
 }
 
 export function RepositoryCard({
@@ -138,6 +142,16 @@ export function RepositoryCard({
                     </div>
                   </>
                 )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center">
+                        <Activity className="w-4 h-4 text-primary animate-pulse" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Last updated: {getTimeAgo(repository.pushed_at)}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             {isTracked && onRemove && (
