@@ -77,34 +77,34 @@ export default function Dashboard() {
       const [owner, repo] = selectedRepo.full_name.split("/");
 
       Promise.all([
-        github.getIssues(owner, repo, 1),
-        github.getPullRequests(owner, repo, 1),
-        github.getReleases(owner, repo, 1),
-        github.getCommits(owner, repo, 1),
+        github.getIssues(owner, repo, 1, 11),
+        github.getPullRequests(owner, repo, 1, 11),
+        github.getReleases(owner, repo, 1, 11),
+        github.getCommits(owner, repo, 1, 11),
       ])
         .then(([issuesData, prsData, releasesData, commitsData]) => {
           setIssues({
-            data: issuesData.data,
+            data: issuesData.data.slice(0, 10),
             page: 1,
-            hasNextPage: issuesData.hasNextPage,
+            hasNextPage: issuesData.data.length > 10,
             isLoading: false,
           });
           setPullRequests({
-            data: prsData.data,
+            data: prsData.data.slice(0, 10),
             page: 1,
-            hasNextPage: prsData.hasNextPage,
+            hasNextPage: prsData.data.length > 10,
             isLoading: false,
           });
           setReleases({
-            data: releasesData.data,
+            data: releasesData.data.slice(0, 10),
             page: 1,
-            hasNextPage: releasesData.hasNextPage,
+            hasNextPage: releasesData.data.length > 10,
             isLoading: false,
           });
           setCommits({
-            data: commitsData.data,
+            data: commitsData.data.slice(0, 10),
             page: 1,
-            hasNextPage: commitsData.hasNextPage,
+            hasNextPage: commitsData.data.length > 10,
             isLoading: false,
           });
         })
@@ -140,42 +140,44 @@ export default function Dashboard() {
 
   const loadMore = async (
     type: "issues" | "pullRequests" | "releases" | "commits",
-    currentState: ActivityState,
+    state: ActivityState,
     setState: (state: ActivityState) => void
   ) => {
-    if (!session?.accessToken || !selectedRepo || !currentState.hasNextPage) return;
+    if (!selectedRepo || !session?.accessToken) return;
 
-    setState({ ...currentState, isLoading: true });
+    setState({ ...state, isLoading: true });
     const github = new GitHubAPI(session.accessToken);
     const [owner, repo] = selectedRepo.full_name.split("/");
-    const nextPage = currentState.page + 1;
+    const nextPage = state.page + 1;
 
     try {
       let response;
       switch (type) {
         case "issues":
-          response = await github.getIssues(owner, repo, nextPage);
+          response = await github.getIssues(owner, repo, nextPage, 11);
           break;
         case "pullRequests":
-          response = await github.getPullRequests(owner, repo, nextPage);
+          response = await github.getPullRequests(owner, repo, nextPage, 11);
           break;
         case "releases":
-          response = await github.getReleases(owner, repo, nextPage);
+          response = await github.getReleases(owner, repo, nextPage, 11);
           break;
         case "commits":
-          response = await github.getCommits(owner, repo, nextPage);
+          response = await github.getCommits(owner, repo, nextPage, 11);
           break;
       }
 
-      setState({
-        data: [...currentState.data, ...response.data],
-        page: nextPage,
-        hasNextPage: response.hasNextPage,
-        isLoading: false,
-      });
+      if (response) {
+        setState({
+          data: [...state.data, ...response.data.slice(0, 10)],
+          page: nextPage,
+          hasNextPage: response.data.length > 10,
+          isLoading: false,
+        });
+      }
     } catch (error) {
-      console.error(`Failed to load more ${type}:`, error);
-      setState({ ...currentState, isLoading: false });
+      console.error("Error loading more items:", error);
+      setState({ ...state, isLoading: false });
     }
   };
 
@@ -336,7 +338,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="space-y-2">{items.map(renderItem)}</div>
-                {state.hasNextPage && items.length >= 5 && (
+                {state.hasNextPage && items.length < 100 && (
                   <div className="flex justify-center mt-2">
                     <Button
                       variant="ghost"
