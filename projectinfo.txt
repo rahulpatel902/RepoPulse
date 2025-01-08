@@ -58,7 +58,7 @@
   - Mark notifications as **read** or **unread**.
   - Click on notifications to view the corresponding activity on GitHub.
 
----
+---h
 
 ### **6. Settings Page**:
 - Create a **settings page** where users can:
