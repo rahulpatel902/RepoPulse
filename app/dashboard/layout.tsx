@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Bell, Settings, Search, Menu } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Logo } from "@/components/logo";
+import { useEffect, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -14,12 +15,37 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+function useScrollDirection() {
+  const [scrollDirection, setScrollDirection] = useState("up");
+  const [prevOffset, setPrevOffset] = useState(0);
+
+  useEffect(() => {
+    const toggleScrollDirection = () => {
+      let scrollY = window.scrollY;
+      if (scrollY === 0) {
+        setScrollDirection("up");
+      } else if (scrollY > prevOffset) {
+        setScrollDirection("down");
+      } else if (scrollY < prevOffset) {
+        setScrollDirection("up");
+      }
+      setPrevOffset(scrollY);
+    };
+
+    window.addEventListener("scroll", toggleScrollDirection);
+    return () => window.removeEventListener("scroll", toggleScrollDirection);
+  }, [prevOffset]);
+
+  return scrollDirection;
+}
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const { data: session, status } = useSession();
+  const scrollDirection = useScrollDirection();
 
   if (status === "unauthenticated") {
     redirect("/");
@@ -60,7 +86,9 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className={`border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-transform duration-300 ${
+        scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"
+      }`}>
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
@@ -111,10 +139,9 @@ export default function DashboardLayout({
           </div>
         </div>
       </header>
-
-      {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
-
+      <main className="flex-1 container mx-auto px-4 py-8">
+        {children}
+      </main>
       {/* Footer */}
       <footer className="border-t mt-auto">
         <div className="container mx-auto px-4 py-6">

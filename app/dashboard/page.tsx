@@ -391,7 +391,7 @@ export default function Dashboard() {
               Add Repository
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogContent className="sm:max-w-[600px] md:max-w-[700px] lg:max-w-[800px] max-h-[85vh]">
             <DialogHeader>
               <DialogTitle>Add Repository</DialogTitle>
             </DialogHeader>
@@ -411,18 +411,19 @@ export default function Dashboard() {
                   )}
                 </Button>
               </div>
-              <ScrollArea className="h-[60vh] pr-4">
-                <div className="grid gap-4">
+              <ScrollArea className="h-[60vh] w-full pr-4">
+                <div className="grid gap-4 min-w-0">
                   {searchResults.map((repo) => (
-                    <RepositoryCard
-                      key={repo.id}
-                      repository={repo}
-                      onSelect={() => {
-                        handleTrackRepository(repo);
-                        const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
-                        if (dialogClose) dialogClose.click();
-                      }}
-                    />
+                    <div key={repo.id} className="min-w-0">
+                      <RepositoryCard
+                        repository={repo}
+                        onSelect={() => {
+                          handleTrackRepository(repo);
+                          const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
+                          if (dialogClose) dialogClose.click();
+                        }}
+                      />
+                    </div>
                   ))}
                   {searchResults.length === 0 && searchQuery && !isSearching && (
                     <div className="text-center py-8 text-muted-foreground">
