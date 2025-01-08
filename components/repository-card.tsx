@@ -150,9 +150,9 @@ export function RepositoryCard({
         </Button>
       )}
       <CardContent className="pt-6">
-        <div className="space-y-4">
+        <div className="space-y-2">
           {/* Header with avatar and name */}
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 mb-2">
             <img
               src={repository.owner.avatar_url}
               alt={repository.owner.login}
@@ -178,14 +178,16 @@ export function RepositoryCard({
           </div>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {repository.description || "No description provided"}
-          </p>
+          {repository.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+              {repository.description}
+            </p>
+          )}
 
           {/* Topics */}
           {repository.topics && repository.topics.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {repository.topics.map((topic) => (
+            <div className="flex flex-wrap gap-1.5 overflow-hidden h-6 mb-2">
+              {repository.topics.slice(0, 4).map((topic) => (
                 <Badge
                   key={topic}
                   variant="secondary"
@@ -194,11 +196,19 @@ export function RepositoryCard({
                   {topic}
                 </Badge>
               ))}
+              {repository.topics.length > 4 && (
+                <Badge
+                  variant="secondary"
+                  className="text-xs px-2 py-0.5 bg-primary/10 hover:bg-primary/20 transition-colors"
+                >
+                  +{repository.topics.length - 4} more
+                </Badge>
+              )}
             </div>
           )}
 
           {/* Stats and links */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-1">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               {repository.language && (
                 <TooltipProvider>
