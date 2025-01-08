@@ -336,7 +336,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="space-y-2">{items.map(renderItem)}</div>
-                {state.hasNextPage && (
+                {state.hasNextPage && items.length >= 5 && (
                   <div className="flex justify-center mt-2">
                     <Button
                       variant="ghost"
