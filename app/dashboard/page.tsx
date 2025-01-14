@@ -26,6 +26,28 @@ interface ActivityState {
   isLoading: boolean;
 }
 
+function getTimeAgo(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30);
+  const years = Math.floor(days / 365);
+
+  if (years > 0) return `${years}y ago`;
+  if (months > 0) return `${months}mo ago`;
+  if (weeks > 0) return `${weeks}w ago`;
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (minutes > 0) return `${minutes}m ago`;
+  if (seconds > 0) return `${seconds}s ago`;
+  return 'just now';
+}
+
 export default function Dashboard() {
   const { data: session } = useSession();
   const [searchQuery, setSearchQuery] = useState("");
@@ -139,6 +161,50 @@ export default function Dashboard() {
     }
   }, [pullRequests.data]);
 
+  const handleFilter = async (type: "issues" | "pullRequests", filter: string) => {
+    if (!selectedRepo || !session?.accessToken) return;
+
+    switch (type) {
+      case "issues":
+        setIssues(prev => ({ ...prev, isLoading: true }));
+        try {
+          const github = new GitHubAPI(session.accessToken);
+          const [owner, repo] = selectedRepo.full_name.split("/");
+          const response = await github.getIssues(owner, repo, 1, 10, filter as "open" | "closed");
+          setIssues({
+            data: response.data,
+            page: 1,
+            hasNextPage: response.hasNextPage,
+            isLoading: false,
+          });
+          setFilteredIssues([]);
+        } catch (error) {
+          console.error("Failed to fetch issues:", error);
+          setIssues(prev => ({ ...prev, isLoading: false }));
+        }
+        break;
+
+      case "pullRequests":
+        setPullRequests(prev => ({ ...prev, isLoading: true }));
+        try {
+          const github = new GitHubAPI(session.accessToken);
+          const [owner, repo] = selectedRepo.full_name.split("/");
+          const response = await github.getPullRequests(owner, repo, 1);
+          setPullRequests({
+            data: response.data,
+            page: 1,
+            hasNextPage: response.hasNextPage,
+            isLoading: false,
+          });
+          setFilteredPRs([]);
+        } catch (error) {
+          console.error("Failed to fetch pull requests:", error);
+          setPullRequests(prev => ({ ...prev, isLoading: false }));
+        }
+        break;
+    }
+  };
+
   const loadMore = async (
     type: "issues" | "pullRequests" | "releases" | "commits",
     state: ActivityState,
@@ -155,7 +221,15 @@ export default function Dashboard() {
       let response;
       switch (type) {
         case "issues":
-          response = await github.getIssues(owner, repo, nextPage, 11);
+          // Get the current filter value from the dialog
+          const issueState = document.querySelector('[data-state-filter="issues"]') as HTMLSelectElement;
+          response = await github.getIssues(
+            owner, 
+            repo, 
+            nextPage, 
+            11, 
+            (issueState?.value || "open") as "open" | "closed"
+          );
           break;
         case "pullRequests":
           response = await github.getPullRequests(owner, repo, nextPage, 11);
@@ -215,62 +289,109 @@ export default function Dashboard() {
     }
   };
 
-  const handleSearchDialog = (type: "issues" | "pullRequests" | "releases" | "commits", query: string) => {
-    const searchLower = query.toLowerCase();
+  const handleSearchDialog = async (type: "issues" | "pullRequests" | "releases" | "commits", query: string) => {
+    if (!selectedRepo || !session?.accessToken || !query) {
+      // Reset filtered data when query is empty
+      switch (type) {
+        case "issues":
+          setFilteredIssues([]);
+          break;
+        case "pullRequests":
+          setFilteredPRs([]);
+          break;
+        case "releases":
+          setFilteredReleases([]);
+          break;
+        case "commits":
+          setFilteredCommits([]);
+          break;
+      }
+      return;
+    }
+
+    // Set loading state
     switch (type) {
       case "issues":
-        setFilteredIssues(
-          issues.data.filter((issue) =>
-            issue.title.toLowerCase().includes(searchLower) ||
-            issue.body?.toLowerCase().includes(searchLower)
-          )
-        );
+        setIssues(prev => ({ ...prev, isLoading: true }));
         break;
       case "pullRequests":
-        setFilteredPRs(
-          pullRequests.data.filter((pr) =>
-            pr.title.toLowerCase().includes(searchLower) ||
-            pr.body?.toLowerCase().includes(searchLower)
-          )
-        );
+        setPullRequests(prev => ({ ...prev, isLoading: true }));
         break;
       case "releases":
-        setFilteredReleases(
-          releases.data.filter((release) =>
-            release.name?.toLowerCase().includes(searchLower) ||
-            release.tag_name.toLowerCase().includes(searchLower) ||
-            release.body?.toLowerCase().includes(searchLower)
-          )
-        );
+        setReleases(prev => ({ ...prev, isLoading: true }));
         break;
       case "commits":
-        setFilteredCommits(
-          commits.data.filter((commit) =>
-            commit.commit.message.toLowerCase().includes(searchLower)
-          )
-        );
+        setCommits(prev => ({ ...prev, isLoading: true }));
         break;
     }
-  };
 
-  const handleFilter = (type: "issues" | "pullRequests", filter: string) => {
-    switch (type) {
-      case "issues":
-        setFilteredIssues(
-          issues.data.filter((issue) => {
-            if (filter === "all") return true;
-            return filter === issue.state;
-          })
-        );
-        break;
-      case "pullRequests":
-        setFilteredPRs(
-          pullRequests.data.filter((pr) => {
-            if (filter === "all") return true;
-            return filter === pr.state;
-          })
-        );
-        break;
+    try {
+      const github = new GitHubAPI(session.accessToken);
+      const [owner, repo] = selectedRepo.full_name.split("/");
+      let response;
+
+      switch (type) {
+        case "issues":
+          response = await github.searchIssues(owner, repo, query);
+          setFilteredIssues(response.data);
+          setIssues(prev => ({ 
+            ...prev, 
+            hasNextPage: response.hasNextPage,
+            isLoading: false 
+          }));
+          break;
+
+        case "pullRequests":
+          response = await github.searchPullRequests(owner, repo, query);
+          setFilteredPRs(response.data);
+          setPullRequests(prev => ({ 
+            ...prev, 
+            hasNextPage: response.hasNextPage,
+            isLoading: false 
+          }));
+          break;
+
+        case "releases":
+          response = await github.searchReleases(owner, repo, query);
+          setFilteredReleases(response.data);
+          setReleases(prev => ({ 
+            ...prev, 
+            hasNextPage: response.hasNextPage,
+            isLoading: false 
+          }));
+          break;
+
+        case "commits":
+          response = await github.searchCommits(owner, repo, query);
+          setFilteredCommits(response.data);
+          setCommits(prev => ({ 
+            ...prev, 
+            hasNextPage: response.hasNextPage,
+            isLoading: false 
+          }));
+          break;
+      }
+    } catch (error) {
+      console.error(`Failed to search ${type}:`, error);
+      // Reset loading state and filtered data on error
+      switch (type) {
+        case "issues":
+          setIssues(prev => ({ ...prev, isLoading: false }));
+          setFilteredIssues([]);
+          break;
+        case "pullRequests":
+          setPullRequests(prev => ({ ...prev, isLoading: false }));
+          setFilteredPRs([]);
+          break;
+        case "releases":
+          setReleases(prev => ({ ...prev, isLoading: false }));
+          setFilteredReleases([]);
+          break;
+        case "commits":
+          setCommits(prev => ({ ...prev, isLoading: false }));
+          setFilteredCommits([]);
+          break;
+      }
     }
   };
 
@@ -330,7 +451,7 @@ export default function Dashboard() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[340px] pr-4">
+        <ScrollArea className="h-[340px]">
           <div className="space-y-2 pr-4">
             {items.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
@@ -383,87 +504,86 @@ export default function Dashboard() {
       </div>
 
       {/* Search and Add Repository */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold">Your Repositories</h2>
         <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Your Repositories
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 -mt-0.5"
-            onClick={() => setIsMinimized(!isMinimized)}
-            title={isMinimized ? "Expand repositories" : "Minimize repositories"}
-          >
-            {isMinimized ? (
-              <Maximize2 className="h-4 w-4" />
-            ) : (
-              <Minimize2 className="h-4 w-4" />
-            )}
-            <span className="sr-only">
-              {isMinimized ? "Expand repositories" : "Minimize repositories"}
-            </span>
-          </Button>
-        </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Repository
+          {trackedRepos.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMinimized(!isMinimized)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {isMinimized ? (
+                <Maximize2 className="w-4 h-4" />
+              ) : (
+                <Minimize2 className="w-4 h-4" />
+              )}
+              <span className="sr-only">
+                {isMinimized ? "Expand repositories" : "Minimize repositories"}
+              </span>
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] md:max-w-[700px] lg:max-w-[800px] max-h-[85vh]">
-            <DialogHeader>
-              <DialogTitle>Add Repository</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search repositories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
-                <Button onClick={handleSearch} disabled={isSearching}>
-                  {isSearching ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-              <ScrollArea className="h-[60vh] w-full pr-4">
-                <div className="grid gap-4 min-w-0">
-                  {searchResults.map((repo) => (
-                    <div key={repo.id} className="min-w-0">
-                      <RepositoryCard
-                        repository={repo}
-                        onSelect={() => {
-                          handleTrackRepository(repo);
-                          const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
-                          if (dialogClose) dialogClose.click();
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {searchResults.length === 0 && searchQuery && !isSearching && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No repositories found for "{searchQuery}"
-                    </div>
-                  )}
-                  {isSearching && (
-                    <div className="text-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Searching repositories...
-                      </p>
-                    </div>
-                  )}
+          )}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
+                <span className="hidden md:inline">Add Repository</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] md:max-w-[700px] lg:max-w-[800px] max-h-[85vh]">
+              <DialogHeader>
+                <DialogTitle>Add Repository</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search repositories..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  />
+                  <Button onClick={handleSearch} disabled={isSearching}>
+                    {isSearching ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                  </Button>
                 </div>
-              </ScrollArea>
-            </div>
-          </DialogContent>
-        </Dialog>
+                <ScrollArea className="h-[60vh] w-full pr-4">
+                  <div className="grid gap-4 min-w-0">
+                    {searchResults.map((repo) => (
+                      <div key={repo.id} className="min-w-0">
+                        <RepositoryCard
+                          repository={repo}
+                          onSelect={() => {
+                            handleTrackRepository(repo);
+                            const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
+                            if (dialogClose) dialogClose.click();
+                          }}
+                        />
+                      </div>
+                    ))}
+                    {searchResults.length === 0 && searchQuery && !isSearching && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No repositories found for "{searchQuery}"
+                      </div>
+                    )}
+                    {isSearching && (
+                      <div className="text-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Searching repositories...
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Tracked Repositories */}
@@ -551,7 +671,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                           <span>{authorName}</span>
                           <span>•</span>
-                          <span>{new Date(commit.commit.author.date).toLocaleDateString()}</span>
+                          <span>{getTimeAgo(commit.commit.author.date)}</span>
                           <span>•</span>
                           <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{commit.sha.substring(0, 7)}</code>
                         </div>
@@ -607,11 +727,11 @@ export default function Dashboard() {
                           {issue.title}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                          <span>#{issue.number}</span>
-                          <span>•</span>
                           <span>{issue.user.login}</span>
                           <span>•</span>
-                          <span>opened {new Date(issue.created_at).toLocaleDateString()}</span>
+                          <span>{getTimeAgo(issue.created_at)}</span>
+                          <span>•</span>
+                          <span>#{issue.number}</span>
                         </div>
                       </div>
                     </div>
@@ -665,11 +785,11 @@ export default function Dashboard() {
                           {pr.title}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                          <span>#{pr.number}</span>
-                          <span>•</span>
                           <span>{pr.user.login}</span>
                           <span>•</span>
-                          <span>{pr.state === 'open' ? 'opened' : pr.state} {new Date(pr.created_at).toLocaleDateString()}</span>
+                          <span>{getTimeAgo(pr.created_at)}</span>
+                          <span>•</span>
+                          <span>#{pr.number}</span>
                         </div>
                       </div>
                     </div>
@@ -723,11 +843,11 @@ export default function Dashboard() {
                           {release.name || release.tag_name}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                          <code className="bg-muted px-1 py-0.5 rounded">{release.tag_name}</code>
-                          <span>•</span>
                           <span>{release.author.login}</span>
                           <span>•</span>
-                          <span>published {new Date(release.published_at).toLocaleDateString()}</span>
+                          <span>{getTimeAgo(release.published_at)}</span>
+                          <span>•</span>
+                          <span>{release.tag_name}</span>
                         </div>
                       </div>
                     </div>

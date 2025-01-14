@@ -133,13 +133,14 @@ export class GitHubAPI {
     owner: string,
     repo: string,
     page: number = 1,
-    per_page: number = 10
+    per_page: number = 10,
+    state: "open" | "closed" = "open"
   ): Promise<{ data: Issue[]; hasNextPage: boolean }> {
     // Fetch current page
     const { data } = await this.octokit.issues.listForRepo({
       owner,
       repo,
-      state: "open",
+      state,
       page,
       per_page: per_page * 3, // Fetch triple the amount to ensure we have enough after filtering
     });
@@ -154,7 +155,7 @@ export class GitHubAPI {
     const nextPageResponse = await this.octokit.issues.listForRepo({
       owner,
       repo,
-      state: "open",
+      state,
       page: page + 1,
       per_page: 30, // Fetch enough to check if there are more non-PR issues
     });
@@ -258,6 +259,118 @@ export class GitHubAPI {
     return {
       data: data as Commit[],
       hasNextPage: nextPage.data.length > 0,
+    };
+  }
+
+  async searchCommits(
+    owner: string,
+    repo: string,
+    query: string,
+    page: number = 1,
+    per_page: number = 10
+  ): Promise<{ data: Commit[]; hasNextPage: boolean }> {
+    const { data } = await this.octokit.rest.search.commits({
+      q: `repo:${owner}/${repo} ${query}`,
+      page,
+      per_page,
+    });
+
+    // Check if there's a next page
+    const nextPage = await this.octokit.rest.search.commits({
+      q: `repo:${owner}/${repo} ${query}`,
+      page: page + 1,
+      per_page: 1,
+    });
+
+    return {
+      data: data.items as Commit[],
+      hasNextPage: nextPage.data.items.length > 0,
+    };
+  }
+
+  async searchIssues(
+    owner: string,
+    repo: string,
+    query: string,
+    page: number = 1,
+    per_page: number = 10,
+    state: "open" | "closed" = "open"
+  ): Promise<{ data: Issue[]; hasNextPage: boolean }> {
+    const { data } = await this.octokit.rest.search.issuesAndPullRequests({
+      q: `repo:${owner}/${repo} ${query} is:issue state:${state}`,
+      page,
+      per_page,
+    });
+
+    // Check if there's a next page
+    const nextPage = await this.octokit.rest.search.issuesAndPullRequests({
+      q: `repo:${owner}/${repo} ${query} is:issue state:${state}`,
+      page: page + 1,
+      per_page: 1,
+    });
+
+    return {
+      data: data.items as Issue[],
+      hasNextPage: nextPage.data.items.length > 0,
+    };
+  }
+
+  async searchPullRequests(
+    owner: string,
+    repo: string,
+    query: string,
+    page: number = 1,
+    per_page: number = 10
+  ): Promise<{ data: PullRequest[]; hasNextPage: boolean }> {
+    const { data } = await this.octokit.rest.search.issuesAndPullRequests({
+      q: `repo:${owner}/${repo} ${query} is:pr`,
+      page,
+      per_page,
+    });
+
+    // Check if there's a next page
+    const nextPage = await this.octokit.rest.search.issuesAndPullRequests({
+      q: `repo:${owner}/${repo} ${query} is:pr`,
+      page: page + 1,
+      per_page: 1,
+    });
+
+    return {
+      data: data.items as PullRequest[],
+      hasNextPage: nextPage.data.items.length > 0,
+    };
+  }
+
+  async searchReleases(
+    owner: string,
+    repo: string,
+    query: string,
+    page: number = 1,
+    per_page: number = 10
+  ): Promise<{ data: Release[]; hasNextPage: boolean }> {
+    // Get all releases for the page
+    const { data } = await this.octokit.repos.listReleases({
+      owner,
+      repo,
+      page,
+      per_page: 100, // Get more to search through
+    });
+
+    // Search through releases locally since GitHub doesn't have a release search API
+    const searchLower = query.toLowerCase();
+    const filteredReleases = data.filter(release => 
+      release.name?.toLowerCase().includes(searchLower) ||
+      release.tag_name.toLowerCase().includes(searchLower) ||
+      release.body?.toLowerCase().includes(searchLower)
+    );
+
+    // Paginate the filtered results
+    const startIndex = (page - 1) * per_page;
+    const paginatedReleases = filteredReleases.slice(startIndex, startIndex + per_page);
+
+    return {
+      data: paginatedReleases as Release[],
+      hasNextPage: startIndex + per_page < filteredReleases.length,
     };
   }
 }

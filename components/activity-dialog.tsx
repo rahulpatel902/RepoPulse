@@ -46,14 +46,24 @@ export function ActivityDialog({
   onLoadMore,
 }: ActivityDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [selectedFilter, setSelectedFilter] = useState<"open" | "closed">("open");
   const [selectedLabel, setSelectedLabel] = useState("all");
 
   const handleSearch = () => {
+    if (type === "commits") {
+      setSelectedFilter("open");
+      setSelectedLabel("all");
+    }
     onSearch(searchQuery);
   };
 
-  const handleFilterChange = (value: string) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
+  const handleFilterChange = (value: "open" | "closed") => {
     setSelectedFilter(value);
     onFilter?.(value);
   };
@@ -62,6 +72,28 @@ export function ActivityDialog({
     setSelectedLabel(value);
     onLabelSelect?.(value);
   };
+
+  function getTimeAgo(dateString: string) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const weeks = Math.floor(days / 7);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+
+    if (years > 0) return `${years}y ago`;
+    if (months > 0) return `${months}mo ago`;
+    if (weeks > 0) return `${weeks}w ago`;
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    if (seconds > 0) return `${seconds}s ago`;
+    return 'just now';
+  }
 
   const renderContent = () => {
     switch (type) {
@@ -74,17 +106,17 @@ export function ActivityDialog({
                 href={issue.html_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                className="block p-3 sm:p-4 rounded-lg border hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-start gap-3">
                   <img
                     src={issue.user.avatar_url}
                     alt={issue.user.login}
-                    className="w-8 h-8 rounded-full"
+                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full"
                   />
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium">{issue.title}</h4>
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <h4 className="font-medium text-sm sm:text-base line-clamp-2">{issue.title}</h4>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2">
                       {issue.labels.map((label: any) => (
                         <Badge
                           key={label.id}
@@ -92,14 +124,14 @@ export function ActivityDialog({
                             backgroundColor: `#${label.color}`,
                             color: getContrastColor(label.color),
                           }}
+                          className="text-xs px-1.5 py-0.5"
                         >
                           {label.name}
                         </Badge>
                       ))}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      #{issue.number} opened {new Date(issue.created_at).toLocaleDateString()} by{" "}
-                      {issue.user.login}
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+                      #{issue.number} • {getTimeAgo(issue.created_at)} • {issue.user.login}
                     </p>
                   </div>
                 </div>
@@ -117,17 +149,17 @@ export function ActivityDialog({
                 href={pr.html_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                className="block p-3 sm:p-4 rounded-lg border hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-start gap-3">
                   <img
                     src={pr.user.avatar_url}
                     alt={pr.user.login}
-                    className="w-8 h-8 rounded-full"
+                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full"
                   />
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium">{pr.title}</h4>
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <h4 className="font-medium text-sm sm:text-base line-clamp-2">{pr.title}</h4>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2">
                       {pr.labels.map((label: any) => (
                         <Badge
                           key={label.id}
@@ -135,14 +167,14 @@ export function ActivityDialog({
                             backgroundColor: `#${label.color}`,
                             color: getContrastColor(label.color),
                           }}
+                          className="text-xs px-1.5 py-0.5"
                         >
                           {label.name}
                         </Badge>
                       ))}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      #{pr.number} opened {new Date(pr.created_at).toLocaleDateString()} by{" "}
-                      {pr.user.login}
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+                      #{pr.number} • {getTimeAgo(pr.created_at)} • {pr.user.login}
                     </p>
                   </div>
                 </div>
@@ -160,28 +192,27 @@ export function ActivityDialog({
                 href={release.html_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                className="block p-3 sm:p-4 rounded-lg border hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-start gap-3">
                   <img
                     src={release.author.avatar_url}
                     alt={release.author.login}
-                    className="w-8 h-8 rounded-full"
+                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium">
+                      <h4 className="font-medium text-sm sm:text-base line-clamp-1">
                         {release.name || release.tag_name}
                       </h4>
                       {index === 0 && (
-                        <Badge variant="default" className="bg-green-500">
+                        <Badge variant="default" className="bg-green-500 text-xs">
                           Latest
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Released on {new Date(release.published_at).toLocaleDateString()} by{" "}
-                      {release.author.login}
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+                      {release.tag_name} • {getTimeAgo(release.published_at)} • {release.author.login}
                     </p>
                   </div>
                 </div>
@@ -210,28 +241,32 @@ export function ActivityDialog({
                   href={commit.html_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                  className="block p-3 sm:p-4 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-start gap-3">
                     <img
                       src={avatarUrl}
                       alt={authorName}
-                      className="w-8 h-8 rounded-full"
+                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full"
                     />
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-base">{title}</h4>
+                      <h4 className="font-medium text-sm sm:text-base line-clamp-2">{title}</h4>
                       {description && (
-                        <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                           {description}
-                          {hasMoreLines && " ..."}
-                        </div>
+                          {hasMoreLines && (
+                            <span className="text-xs text-primary ml-1">...</span>
+                          )}
+                        </p>
                       )}
-                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 mt-2 text-xs sm:text-sm text-muted-foreground">
                         <span className="font-medium">{authorName}</span>
                         <span>•</span>
-                        <span>committed on {new Date(commit.commit.author.date).toLocaleDateString()} at {new Date(commit.commit.author.date).toLocaleTimeString()}</span>
+                        <span>{getTimeAgo(commit.commit.author.date)}</span>
                         <span>•</span>
-                        <code className="text-xs bg-muted px-1 py-0.5 rounded">{commit.sha.substring(0, 7)}</code>
+                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                          {commit.sha.substring(0, 7)}
+                        </code>
                       </div>
                     </div>
                   </div>
@@ -245,82 +280,104 @@ export function ActivityDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 border-b shrink-0">
           <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  className="pl-8"
-                />
-              </div>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            <div className="flex-1 flex gap-2">
+              <Input
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyPress}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleSearch} 
+                size="icon"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-            {type !== "releases" && type !== "commits" && (
-              <>
-                <Select value={selectedFilter} onValueChange={handleFilterChange}>
-                  <SelectTrigger className="w-[150px]">
-                    <Filter className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Filter" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={selectedLabel} onValueChange={handleLabelChange}>
-                  <SelectTrigger className="w-[150px]">
-                    <Tag className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Label" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Labels</SelectItem>
-                    {labels.map((label) => (
-                      <SelectItem key={label} value={label}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
+            {onFilter && (
+              <Select 
+                value={selectedFilter} 
+                onValueChange={handleFilterChange}
+                data-state-filter="issues"
+              >
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {labels.length > 0 && (
+              <Select value={selectedLabel} onValueChange={handleLabelChange}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <Tag className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Label" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Labels</SelectItem>
+                  {labels.map((label) => (
+                    <SelectItem key={label} value={label}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
+        </DialogHeader>
 
-          <ScrollArea className="h-[60vh] pr-4">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <Loader2 className="w-8 h-8 animate-spin" />
-                <p className="text-sm text-muted-foreground mt-2">Loading...</p>
-              </div>
-            ) : data.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <p>No items found</p>
-              </div>
-            ) : (
-              renderContent()
-            )}
-            {hasNextPage && data.length < 100 && !isLoading && (
-              <div className="flex justify-center mt-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onLoadMore}
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
-                >
-                  <ArrowDown className="h-3 w-3" />
-                  Load more
-                </Button>
-              </div>
-            )}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-4 sm:p-6 space-y-4">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <p className="text-sm text-muted-foreground mt-2">Loading...</p>
+                </div>
+              ) : data.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <p>No items found</p>
+                </div>
+              ) : (
+                <>
+                  {renderContent()}
+                  {(hasNextPage || isLoading) && (
+                    <div className="pt-4">
+                      {hasNextPage && !isLoading && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={onLoadMore}
+                          className="w-full h-8 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5"
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" />
+                          Load more
+                        </Button>
+                      )}
+                      {isLoading && (
+                        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Loading...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </ScrollArea>
         </div>
       </DialogContent>

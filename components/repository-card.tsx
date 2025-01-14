@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useState, useEffect, useRef } from "react";
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -92,6 +93,21 @@ export function RepositoryCard({
   isTracked = false,
   isMinimized = false,
 }: RepositoryCardProps) {
+  const [isTitleTruncated, setIsTitleTruncated] = useState(false);
+  const titleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkTruncation = () => {
+      if (titleRef.current) {
+        setIsTitleTruncated(titleRef.current.scrollWidth > titleRef.current.clientWidth);
+      }
+    };
+
+    checkTruncation();
+    window.addEventListener('resize', checkTruncation);
+    return () => window.removeEventListener('resize', checkTruncation);
+  }, [repository.full_name]);
+
   const handleExternalClick = (e: React.MouseEvent, url: string | null) => {
     e.stopPropagation();
     if (url) {
@@ -116,20 +132,38 @@ export function RepositoryCard({
               className="w-10 h-10 rounded-full"
             />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base leading-tight truncate mb-0.5">
-                {repository.full_name}
-              </h3>
+              <div className="flex flex-col w-full">
+                <h3 className="font-semibold truncate h-[20px] w-full" ref={titleRef}>
+                  {isTitleTruncated ? (
+                    <>
+                      <span className="hidden md:inline">{repository.full_name}</span>
+                      <span className="md:hidden">{repository.name}</span>
+                    </>
+                  ) : (
+                    repository.full_name
+                  )}
+                </h3>
+              </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                <span>by {repository.owner.login}</span>
-                <span>•</span>
                 <div className="flex items-center gap-1">
                   {repository.private ? (
-                    <Lock className="w-3.5 h-3.5" />
+                    <Lock className="w-3.5 h-3.5 -mt-[1px]" />
                   ) : (
-                    <Globe className="w-3.5 h-3.5" />
+                    <Globe className="w-3.5 h-3.5 -mt-[1px]" />
                   )}
                   <span>{repository.private ? "Private" : "Public"}</span>
                 </div>
+                <span>•</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center">
+                        <Activity className="w-4 h-4 text-primary animate-pulse -mt-[1px]" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Last updated: {getTimeAgo(repository.pushed_at)}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 {repository.language && (
                   <>
                     <span>•</span>
@@ -142,16 +176,6 @@ export function RepositoryCard({
                     </div>
                   </>
                 )}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center">
-                        <Activity className="w-4 h-4 text-primary animate-pulse" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Last updated: {getTimeAgo(repository.pushed_at)}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </div>
             </div>
             {isTracked && onRemove && (
@@ -204,19 +228,31 @@ export function RepositoryCard({
               className="w-10 h-10 rounded-full"
             />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base leading-tight truncate mb-0.5">
-                {repository.full_name}
-              </h3>
+              <div className="flex flex-col w-full">
+                <h3 className="font-semibold truncate h-[20px] w-full" ref={titleRef}>
+                  {isTitleTruncated ? (
+                    <>
+                      <span className="hidden md:inline">{repository.full_name}</span>
+                      <span className="md:hidden">{repository.name}</span>
+                    </>
+                  ) : (
+                    repository.full_name
+                  )}
+                </h3>
+              </div>
               <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                <span>by {repository.owner.login}</span>
-                <span>•</span>
                 <div className="flex items-center gap-1">
                   {repository.private ? (
-                    <Lock className="w-3.5 h-3.5" />
+                    <Lock className="w-3.5 h-3.5 -mt-[1px]" />
                   ) : (
-                    <Globe className="w-3.5 h-3.5" />
+                    <Globe className="w-3.5 h-3.5 -mt-[1px]" />
                   )}
                   <span>{repository.private ? "Private" : "Public"}</span>
+                </div>
+                <span>•</span>
+                <div className="flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-primary animate-pulse -mt-[1px]" />
+                  <span>{getTimeAgo(repository.pushed_at)}</span>
                 </div>
               </p>
             </div>
@@ -295,18 +331,6 @@ export function RepositoryCard({
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>Forks</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5">
-                      <Activity className="w-4 h-4 text-primary animate-pulse" />
-                      <span>{getTimeAgo(repository.pushed_at)}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>Last updated</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
