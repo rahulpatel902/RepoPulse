@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { RepositoryAnalytics } from "@/components/analytics/repository-analytics";
 
 interface ActivityState {
   data: any[];
@@ -857,6 +858,18 @@ export default function Dashboard() {
             )}
           </div>
         </>
+      )}
+      {/* Repository Analytics */}
+      {selectedRepo && (
+        <div className={cn(
+          "mt-8",
+          isMinimized ? "mt-4" : "mt-8"
+        )}>
+          <RepositoryAnalytics
+            repository={selectedRepo}
+            accessToken={session?.accessToken || ""}
+          />
+        </div>
       )}
       {/* Activity Dialogs */}
       <ActivityDialog

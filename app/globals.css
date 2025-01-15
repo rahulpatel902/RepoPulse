@@ -122,4 +122,9 @@
     -ms-user-select: none;
     user-select: none;
   }
+
+  .glow-shadow {
+    box-shadow: 0 0 30px -5px rgba(0, 0, 0, 0.3),
+                0 0 60px -10px rgba(112, 7, 172, 0.15);
+  }
 }

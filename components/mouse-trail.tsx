@@ -6,26 +6,23 @@ interface Point {
   x: number;
   y: number;
   alpha: number;
-  touchId?: number;
 }
 
-interface TouchTrail {
+interface Line {
   points: Point[];
-  touchId: number;
+  isActive: boolean;
 }
 
-export function MouseTrail() {
+export function MouseTrail({ enabled }: { enabled: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const touchTrailsRef = useRef<TouchTrail[]>([]);
-  const mouseTrailRef = useRef<Point[]>([]);
+  const linesRef = useRef<Line[]>([]);
   const isDrawingRef = useRef(false);
   const mousePositionRef = useRef({ x: 0, y: 0 });
   const requestRef = useRef<number>();
-  const lastTouchTimeRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !enabled) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -50,123 +47,75 @@ export function MouseTrail() {
       if (e instanceof MouseEvent) {
         isDrawingRef.current = true;
         mousePositionRef.current = getPointerPosition(e);
-        mouseTrailRef.current = [];
+        // Add new line
+        linesRef.current.push({
+          points: [{ ...mousePositionRef.current, alpha: 1 }],
+          isActive: true
+        });
       } else {
-        // For touch events, handle each touch point
-        if (e.touches.length >= 2) {
-          e.preventDefault(); // Prevent scrolling with multiple fingers
+        if (e.touches.length === 1) {
+          e.preventDefault();
           isDrawingRef.current = true;
-          
-          // Create a new trail for each touch point
-          Array.from(e.touches).forEach(touch => {
-            const position = getPointerPosition(touch);
-            touchTrailsRef.current.push({
-              points: [{
-                x: position.x,
-                y: position.y,
-                alpha: 1,
-                touchId: touch.identifier
-              }],
-              touchId: touch.identifier
-            });
+          const touch = e.touches[0];
+          mousePositionRef.current = getPointerPosition(touch);
+          linesRef.current.push({
+            points: [{ ...mousePositionRef.current, alpha: 1 }],
+            isActive: true
           });
-        } else {
-          lastTouchTimeRef.current = Date.now();
         }
       }
     };
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDrawingRef.current && e instanceof TouchEvent && e.touches.length >= 2) {
-        // Start drawing if multiple fingers are added during move
-        e.preventDefault();
-        isDrawingRef.current = true;
-        touchTrailsRef.current = [];
-      }
-
       if (!isDrawingRef.current) return;
 
       if (e instanceof MouseEvent) {
         mousePositionRef.current = getPointerPosition(e);
-        mouseTrailRef.current.push({
-          x: mousePositionRef.current.x,
-          y: mousePositionRef.current.y,
-          alpha: 1
-        });
-      } else {
-        e.preventDefault(); // Prevent scrolling while drawing
-        
-        // Update each touch trail
-        Array.from(e.touches).forEach(touch => {
-          const position = getPointerPosition(touch);
-          let trail = touchTrailsRef.current.find(t => t.touchId === touch.identifier);
-          
-          if (!trail) {
-            // Create new trail if it doesn't exist
-            trail = {
-              points: [],
-              touchId: touch.identifier
-            };
-            touchTrailsRef.current.push(trail);
-          }
-          
-          trail.points.push({
-            x: position.x,
-            y: position.y,
-            alpha: 1,
-            touchId: touch.identifier
+        const currentLine = linesRef.current[linesRef.current.length - 1];
+        if (currentLine && currentLine.isActive) {
+          currentLine.points.push({
+            x: mousePositionRef.current.x,
+            y: mousePositionRef.current.y,
+            alpha: 1
           });
-        });
+        }
+      } else {
+        if (e.touches.length === 1) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          mousePositionRef.current = getPointerPosition(touch);
+          const currentLine = linesRef.current[linesRef.current.length - 1];
+          if (currentLine && currentLine.isActive) {
+            currentLine.points.push({
+              x: mousePositionRef.current.x,
+              y: mousePositionRef.current.y,
+              alpha: 1
+            });
+          }
+        }
       }
     };
 
-    const handleEnd = (e: MouseEvent | TouchEvent) => {
-      if (e instanceof TouchEvent) {
-        // Handle touch end for specific touch points
-        if (e.changedTouches) {
-          Array.from(e.changedTouches).forEach(touch => {
-            // Keep the trail but stop adding new points
-            const trailIndex = touchTrailsRef.current.findIndex(t => t.touchId === touch.identifier);
-            if (trailIndex !== -1) {
-              // Let the trail fade out naturally
-              touchTrailsRef.current[trailIndex].points = [...touchTrailsRef.current[trailIndex].points];
-            }
-          });
-        }
-        
-        // If no more touches, stop drawing
-        if (e.touches.length < 2) {
-          isDrawingRef.current = false;
-        }
-      } else {
-        isDrawingRef.current = false;
+    const handleEnd = () => {
+      isDrawingRef.current = false;
+      // Mark current line as inactive
+      const currentLine = linesRef.current[linesRef.current.length - 1];
+      if (currentLine) {
+        currentLine.isActive = false;
       }
     };
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw mouse trail
-      if (mouseTrailRef.current.length > 0) {
-        drawTrail(mouseTrailRef.current);
-        // Update alpha and filter out faded points
-        mouseTrailRef.current = mouseTrailRef.current
+      // Draw all lines
+      linesRef.current = linesRef.current.filter(line => {
+        drawTrail(line.points);
+        // Update alpha for all points in the line
+        line.points = line.points
           .map(point => ({ ...point, alpha: point.alpha * 0.95 }))
           .filter(point => point.alpha > 0.01);
-      }
-
-      // Draw all touch trails
-      touchTrailsRef.current.forEach((trail, index) => {
-        drawTrail(trail.points);
-        // Update alpha and filter out faded points
-        trail.points = trail.points
-          .map(point => ({ ...point, alpha: point.alpha * 0.95 }))
-          .filter(point => point.alpha > 0.01);
-        
-        // Remove trail if all points have faded
-        if (trail.points.length === 0) {
-          touchTrailsRef.current.splice(index, 1);
-        }
+        return line.points.length > 0;
       });
 
       requestRef.current = requestAnimationFrame(animate);
@@ -175,9 +124,15 @@ export function MouseTrail() {
     const drawTrail = (points: Point[]) => {
       for (let i = 0; i < points.length; i++) {
         const point = points[i];
+        
+        // Add glow effect
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = `rgba(255, 255, 255, ${point.alpha * 0.5})`;
+        
+        // Main stroke
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(147, 51, 234, ${point.alpha})`; // Purple color
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${point.alpha})`; // White color
+        ctx.lineWidth = 2;
         ctx.lineCap = "round";
 
         if (i > 0) {
@@ -187,6 +142,9 @@ export function MouseTrail() {
         }
 
         ctx.stroke();
+        
+        // Reset shadow for next iteration
+        ctx.shadowBlur = 0;
       }
     };
 
@@ -202,7 +160,7 @@ export function MouseTrail() {
     // Touch events
     canvas.addEventListener("touchstart", handleStart, { passive: false });
     canvas.addEventListener("touchmove", handleMove, { passive: false });
-    canvas.addEventListener("touchend", handleEnd, { passive: false });
+    canvas.addEventListener("touchend", handleEnd);
     canvas.addEventListener("touchcancel", handleEnd);
 
     requestRef.current = requestAnimationFrame(animate);
@@ -224,7 +182,9 @@ export function MouseTrail() {
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, []);
+  }, [enabled]);
+
+  if (!enabled) return null;
 
   return (
     <canvas

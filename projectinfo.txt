@@ -251,4 +251,6 @@
 
 --- ]
 
-above text are the from which i made the current landing page , and implemented authentication for RepoPulse using NextAuth.js with GitHub OAuth check it if its working or not
+
+
+can you add Repository Health Tab:

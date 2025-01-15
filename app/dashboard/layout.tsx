@@ -238,7 +238,7 @@ export default function DashboardLayout({
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 hover:text-foreground"
               >
-                Rahul Patel
+                Rahul
                 <svg
                   width="12"
                   height="12"
