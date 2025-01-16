@@ -149,13 +149,15 @@ export class GitHubAPI {
         return this.fetchWithAuth(`/repos/${owner}/${repo}/contributors`);
     }
 
-    async getLanguages(owner: string, repo: string) {
-        const response = await this.fetchWithAuth(`/repos/${owner}/${repo}/languages`);
-        const total = Object.values(response).reduce((a: number, b: number) => a + b, 0);
-        return Object.entries(response).map(([name, bytes]) => ({
-            name,
-            percentage: (bytes as number / total) * 100
-        }));
+    async getLanguages(owner: string, repo: string): Promise<{ name: string; percentage: number }[]> {
+        const response = await this.fetchWithAuth(`/repos/${owner}/${repo}/languages`) as Record<string, number>;
+        const total = Object.values(response).reduce((a, b) => a + b, 0);
+        return Object.entries(response)
+            .map(([name, bytes]) => ({
+                name,
+                percentage: Number((bytes / total * 100).toFixed(2))
+            }))
+            .sort((a, b) => b.percentage - a.percentage);
     }
 
     async getCommitActivity(owner: string, repo: string, days: number): Promise<{ date: string; count: number }[]> {
