@@ -113,6 +113,19 @@ export interface TimeRangeLimit {
     maxRequests: number;
 }
 
+export interface Branch {
+    name: string;
+    commit: {
+        sha: string;
+        url: string;
+    };
+    protected: boolean;
+    lastCommit?: {
+        date: string;
+        count?: number;
+    };
+}
+
 export const TIME_RANGE_LIMITS: { [key: string]: TimeRangeLimit } = {
     '1': { maxItems: 300, maxRequests: 3 },    // Today
     '2': { maxItems: 300, maxRequests: 3 },    // Yesterday
@@ -560,5 +573,66 @@ export class GitHubAPI {
             defaultBranch: repoData.default_branch,
             license: repoData.license
         };
+    }
+
+    async getBranchActivity(owner: string, repo: string, branch: string): Promise<{ date: string; count: number }> {
+        try {
+            const endpoint = `/repos/${owner}/${repo}/commits`;
+            const response = await fetch(`${this.baseUrl}${endpoint}?sha=${branch}&per_page=1`, {
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'X-GitHub-Api-Version': '2022-11-28'
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`Error fetching branch activity: ${response.statusText}`);
+                return { date: '', count: 0 };
+            }
+
+            const commits = await response.json();
+            if (commits && commits.length > 0) {
+                return {
+                    date: commits[0].commit.author.date,
+                    count: 1
+                };
+            }
+            return { date: '', count: 0 };
+        } catch (error) {
+            console.error(`Error fetching activity for branch ${branch}:`, error);
+            return { date: '', count: 0 };
+        }
+    }
+
+    async getBranches(owner: string, repo: string): Promise<Branch[]> {
+        try {
+            const endpoint = `/repos/${owner}/${repo}/branches`;
+            const branches = await this.fetchWithCache(endpoint);
+            
+            // Get activity data for each branch in parallel, with error handling
+            const branchesWithActivity = await Promise.all(
+                branches.map(async (branch: Branch) => {
+                    try {
+                        const activity = await this.getBranchActivity(owner, repo, branch.name);
+                        return {
+                            ...branch,
+                            lastCommit: {
+                                date: activity.date,
+                                count: activity.count
+                            }
+                        };
+                    } catch (error) {
+                        console.error(`Error processing branch ${branch.name}:`, error);
+                        return branch;
+                    }
+                })
+            );
+            
+            return branchesWithActivity;
+        } catch (error) {
+            console.error('Error fetching branches:', error);
+            throw error;
+        }
     }
 }

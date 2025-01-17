@@ -1,13 +1,15 @@
 "use client";
 
-import { Repository } from "@/lib/github";
+import { Repository, Branch, GitHubAPI } from "@/lib/github";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock, Activity, CheckCircle2 } from "lucide-react";
+import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock, Activity, CheckCircle2, GitBranch, Loader2, GitMerge, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -16,6 +18,7 @@ interface RepositoryCardProps {
   isTracked?: boolean;
   isMinimized?: boolean;
   isSelected?: boolean;
+  accessToken?: string;
 }
 
 // Helper function to determine text color based on background
@@ -94,9 +97,58 @@ export function RepositoryCard({
   isTracked = false,
   isMinimized = false,
   isSelected = false,
+  accessToken,
 }: RepositoryCardProps) {
   const [isTitleTruncated, setIsTitleTruncated] = useState(false);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>(repository.default_branch);
+  const [open, setOpen] = useState(false);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (!accessToken) {
+        setError('No access token available');
+        return;
+      }
+      
+      setIsLoadingBranches(true);
+      setError(null);
+      try {
+        const github = new GitHubAPI(accessToken);
+        const [owner, repo] = repository.full_name.split('/');
+        const branchData = await github.getBranches(owner, repo);
+        console.log('Fetched branches:', branchData); // Debug log
+        setBranches(branchData);
+      } catch (error) {
+        console.error('Error fetching branches:', error);
+        setError('Failed to fetch branches');
+      } finally {
+        setIsLoadingBranches(false);
+      }
+    };
+
+    fetchBranches();
+  }, [repository.full_name, accessToken]);
+
+  // Sort branches with default branch at top, then by activity
+  const sortedBranches = useMemo(() => {
+    if (!branches.length) return [];
+    
+    const defaultBranch = branches.filter(b => b.name === repository.default_branch);
+    const otherBranches = branches
+      .filter(b => b.name !== repository.default_branch)
+      .sort((a, b) => {
+        // Sort by last commit date (most recent first)
+        const dateA = a.lastCommit?.date ? new Date(a.lastCommit.date).getTime() : 0;
+        const dateB = b.lastCommit?.date ? new Date(b.lastCommit.date).getTime() : 0;
+        return dateB - dateA;
+      });
+    
+    return [...defaultBranch, ...otherBranches];
+  }, [branches, repository.default_branch]);
 
   useEffect(() => {
     const checkTruncation = () => {
@@ -335,7 +387,7 @@ export function RepositoryCard({
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4" />
-                      <span>{repository.stargazers_count.toLocaleString()}</span>
+                      <span>{repository.stargazers_count}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>Stars</TooltipContent>
@@ -353,6 +405,133 @@ export function RepositoryCard({
                   <TooltipContent>Forks</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+
+              <Popover open={open} onOpenChange={setOpen}>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                          {selectedBranch === repository.default_branch ? (
+                            <GitMerge className="h-4 w-4" />
+                          ) : (
+                            <GitBranch className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Branches</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <PopoverContent className="w-[300px] p-0 overflow-hidden" align="start">
+                  <Command className="overflow-hidden">
+                    <CommandInput 
+                      placeholder="Search branches..." 
+                      className="border-none focus:ring-0 h-9"
+                    />
+                    <CommandEmpty className="py-2 px-2 text-sm">No branches found.</CommandEmpty>
+                    <div 
+                      className="max-h-[300px] overflow-auto [scrollbar-width:thin] [scrollbar-color:rgb(0_0_0_/_0.2)_transparent] hover:[scrollbar-color:rgb(0_0_0_/_0.3)_transparent]"
+                      style={{
+                        msOverflowStyle: 'none',
+                        scrollbarWidth: 'thin',
+                      }}
+                    >
+                      <style jsx>{`
+                        div::-webkit-scrollbar {
+                          width: 8px;
+                          background: transparent;
+                        }
+                        div::-webkit-scrollbar-thumb {
+                          background-color: rgb(0 0 0 / 0.2);
+                          border-radius: 9999px;
+                          border: 2px solid transparent;
+                          background-clip: content-box;
+                        }
+                        div::-webkit-scrollbar-thumb:hover {
+                          background-color: rgb(0 0 0 / 0.3);
+                        }
+                        div::-webkit-scrollbar-track {
+                          background: transparent;
+                        }
+                      `}</style>
+                      <CommandGroup>
+                        {isLoadingBranches ? (
+                          <div className="flex flex-col items-center justify-center py-8 gap-2">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                            <p className="text-sm text-muted-foreground">Loading branches...</p>
+                          </div>
+                        ) : error ? (
+                          <div className="py-6 text-center text-sm text-destructive">
+                            <div className="mb-2">
+                              <AlertCircle className="h-8 w-8 mx-auto opacity-50" />
+                            </div>
+                            {error}
+                          </div>
+                        ) : sortedBranches.length > 0 ? (
+                          sortedBranches.map((branch) => (
+                            <CommandItem
+                              key={branch.name}
+                              value={branch.name}
+                              onSelect={() => {
+                                setSelectedBranch(branch.name);
+                                setOpen(false);
+                              }}
+                              className="flex items-center justify-between py-1.5 px-2"
+                            >
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                {branch.name === repository.default_branch ? (
+                                  <GitMerge className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                ) : (
+                                  <GitBranch className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                )}
+                                <span className="truncate text-sm" title={branch.name}>
+                                  {branch.name}
+                                </span>
+                                {branch.lastCommit?.date && (
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                    {getTimeAgo(branch.lastCommit.date)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                {branch.name === repository.default_branch && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="h-5 text-[10px] font-medium bg-muted/50 border-0"
+                                  >
+                                    default
+                                  </Badge>
+                                )}
+                                {branch.protected && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="h-5 text-[10px] font-medium bg-muted/50 border-0"
+                                  >
+                                    protected
+                                  </Badge>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))
+                        ) : (
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            <div className="mb-2">
+                              <GitBranch className="h-8 w-8 mx-auto opacity-50" />
+                            </div>
+                            No branches available
+                          </div>
+                        )}
+                      </CommandGroup>
+                      {sortedBranches.length > 0 && (
+                        <div className="p-2 text-xs text-muted-foreground border-t bg-muted/50">
+                          {sortedBranches.length} {sortedBranches.length === 1 ? 'branch' : 'branches'} found
+                        </div>
+                      )}
+                    </div>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="flex items-center gap-2">

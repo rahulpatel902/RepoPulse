@@ -559,6 +559,7 @@ export default function Dashboard() {
                       <div key={repo.id} className="min-w-0">
                         <RepositoryCard
                           repository={repo}
+                          accessToken={session?.accessToken}
                           onSelect={() => {
                             handleTrackRepository(repo);
                             const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
@@ -606,6 +607,7 @@ export default function Dashboard() {
             <RepositoryCard
               key={repo.id}
               repository={repo}
+              accessToken={session?.accessToken}
               onSelect={() => setSelectedRepo(repo)}
               onRemove={() => handleRemoveRepository(repo)}
               isTracked={true}

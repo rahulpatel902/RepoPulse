@@ -128,3 +128,45 @@
                 0 0 60px -10px rgba(112, 7, 172, 0.15);
   }
 }
+
+/* Modern Scrollbar Styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.2) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(0 0 0 / 0.2);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(0 0 0 / 0.3);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Dark mode scrollbar */
+@media (prefers-color-scheme: dark) {
+  * {
+    scrollbar-color: rgb(255 255 255 / 0.2) transparent;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.2);
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 0.3);
+  }
+}
