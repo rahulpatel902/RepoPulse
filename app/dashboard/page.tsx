@@ -34,19 +34,20 @@ function getTimeAgo(dateString: string) {
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
 
-  if (years > 0) return `${years}y ago`;
-  if (months > 0) return `${months}mo ago`;
-  if (weeks > 0) return `${weeks}w ago`;
-  if (days > 0) return `${days}d ago`;
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  if (seconds > 0) return `${seconds}s ago`;
-  return 'just now';
+  // If created today and less than 24 hours ago, show relative time
+  if (hours < 24 && date.getDate() === now.getDate()) {
+    if (minutes < 60) return `${minutes}m ago`;
+    return `${hours}h ago`;
+  }
+
+  // Format the date based on the year
+  const isCurrentYear = date.getFullYear() === now.getFullYear();
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: isCurrentYear ? undefined : '2-digit'
+  });
 }
 
 export default function Dashboard() {
@@ -219,7 +220,7 @@ export default function Dashboard() {
     const nextPage = state.page + 1;
 
     try {
-      let response;
+      let response: { data: any[]; hasNextPage: boolean };
       switch (type) {
         case "issues":
           // Get the current filter value from the dialog
@@ -329,11 +330,11 @@ export default function Dashboard() {
     try {
       const github = new GitHubAPI(session.accessToken);
       const [owner, repo] = selectedRepo.full_name.split("/");
-      let response;
+      let response: { data: any[]; hasNextPage: boolean };
 
       switch (type) {
         case "issues":
-          response = await github.searchIssues(owner, repo, query);
+          response = await github.getIssues(owner, repo, 1, 10, 'open');
           setFilteredIssues(response.data);
           setIssues(prev => ({ 
             ...prev, 
@@ -343,7 +344,7 @@ export default function Dashboard() {
           break;
 
         case "pullRequests":
-          response = await github.searchPullRequests(owner, repo, query);
+          response = await github.getPullRequests(owner, repo, 1, 10);
           setFilteredPRs(response.data);
           setPullRequests(prev => ({ 
             ...prev, 
@@ -353,7 +354,7 @@ export default function Dashboard() {
           break;
 
         case "releases":
-          response = await github.searchReleases(owner, repo, query);
+          response = await github.getReleases(owner, repo, 1, 10);
           setFilteredReleases(response.data);
           setReleases(prev => ({ 
             ...prev, 
@@ -363,7 +364,7 @@ export default function Dashboard() {
           break;
 
         case "commits":
-          response = await github.searchCommits(owner, repo, query);
+          response = await github.getCommits(owner, repo, 1, 10);
           setFilteredCommits(response.data);
           setCommits(prev => ({ 
             ...prev, 
@@ -609,6 +610,7 @@ export default function Dashboard() {
               onRemove={() => handleRemoveRepository(repo)}
               isTracked={true}
               isMinimized={isMinimized}
+              isSelected={selectedRepo?.id === repo.id}
             />
           ))}
         </div>
@@ -617,9 +619,14 @@ export default function Dashboard() {
       {/* Selected Repository Details */}
       {selectedRepo && (
         <>
-          <h2 className="text-2xl font-semibold tracking-tight mt-12 mb-6">
-            Activity for {selectedRepo.full_name}
-          </h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-2xl font-semibold tracking-tight">Activitys</h2>
+            <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+              <div className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium text-primary bg-background shadow-sm">
+                {selectedRepo.name}
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Commits */}
             <ActivityList
@@ -683,8 +690,8 @@ export default function Dashboard() {
               }}
             />
 
-            {/* Only show Issues card if issues are enabled */}
-            {selectedRepo.has_issues && (
+            {/* Only show Issues card if there are issues */}
+            {selectedRepo.open_issues_count > 0 && (
               <ActivityList
                 title={
                   <div className="flex items-center justify-between">

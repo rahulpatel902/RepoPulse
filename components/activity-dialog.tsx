@@ -73,26 +73,27 @@ export function ActivityDialog({
     onLabelSelect?.(value);
   };
 
-  function getTimeAgo(dateString: string) {
+  function formatActivityDate(dateString: string) {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    const weeks = Math.floor(days / 7);
-    const months = Math.floor(days / 30);
-    const years = Math.floor(days / 365);
 
-    if (years > 0) return `${years}y ago`;
-    if (months > 0) return `${months}mo ago`;
-    if (weeks > 0) return `${weeks}w ago`;
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    if (seconds > 0) return `${seconds}s ago`;
-    return 'just now';
+    // If created today and less than 24 hours ago, show relative time
+    if (hours < 24 && date.getDate() === now.getDate()) {
+      if (minutes < 60) return `${minutes}m ago`;
+      return `${hours}h ago`;
+    }
+
+    // Format the date based on the year
+    const isCurrentYear = date.getFullYear() === now.getFullYear();
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: isCurrentYear ? undefined : '2-digit'
+    });
   }
 
   const renderContent = () => {
@@ -131,7 +132,7 @@ export function ActivityDialog({
                       ))}
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                      #{issue.number} • {getTimeAgo(issue.created_at)} • {issue.user.login}
+                      #{issue.number} • {formatActivityDate(issue.created_at)} • {issue.user.login}
                     </p>
                   </div>
                 </div>
@@ -174,7 +175,7 @@ export function ActivityDialog({
                       ))}
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                      #{pr.number} • {getTimeAgo(pr.created_at)} • {pr.user.login}
+                      #{pr.number} • {formatActivityDate(pr.created_at)} • {pr.user.login}
                     </p>
                   </div>
                 </div>
@@ -212,7 +213,7 @@ export function ActivityDialog({
                       )}
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                      {release.tag_name} • {getTimeAgo(release.published_at)} • {release.author.login}
+                      {release.tag_name} • {formatActivityDate(release.published_at)} • {release.author.login}
                     </p>
                   </div>
                 </div>
@@ -226,8 +227,8 @@ export function ActivityDialog({
           <div className="space-y-4">
             {data.map((commit: any) => {
               // Split commit message into title and description
-              const [title, ...descriptionLines] = commit.commit.message.split('\n').map(line => line.trim());
-              const filteredDescLines = descriptionLines.filter(line => line.length > 0);
+              const [title, ...descriptionLines] = commit.commit.message.split('\n').map((line: string) => line.trim());
+              const filteredDescLines = descriptionLines.filter((line: string) => line.length > 0);
               const hasMoreLines = filteredDescLines.length > 2;
               const description = filteredDescLines.slice(0, 2).join('\n');
               
@@ -262,7 +263,7 @@ export function ActivityDialog({
                       <div className="flex items-center gap-2 mt-2 text-xs sm:text-sm text-muted-foreground">
                         <span className="font-medium">{authorName}</span>
                         <span>•</span>
-                        <span>{getTimeAgo(commit.commit.author.date)}</span>
+                        <span>{formatActivityDate(commit.commit.author.date)}</span>
                         <span>•</span>
                         <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
                           {commit.sha.substring(0, 7)}
