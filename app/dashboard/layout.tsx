@@ -175,33 +175,35 @@ export default function DashboardLayout({
       {/* Footer */}
       <footer className="border-t mt-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span>Powered by</span>
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 hover:text-foreground"
-              >
-                GitHub
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-external-link"
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 text-sm text-muted-foreground">
+            <div className="flex flex-wrap justify-center sm:justify-start items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span>Powered by</span>
+                <a
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 hover:text-foreground"
                 >
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </a>
-              <span className="mx-2">•</span>
+                  GitHub
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-external-link"
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </a>
+              </div>
+              <span className="hidden sm:inline mx-4">•</span>
               <a
                 href="https://github.com/rahulpatel902/RepoPulse"
                 target="_blank"
@@ -210,7 +212,7 @@ export default function DashboardLayout({
               >
                 Source Code
               </a>
-              <span className="mx-2">•</span>
+              <span className="hidden sm:inline mx-4">•</span>
               <a
                 href="https://github.com/rahulpatel902/RepoPulse/issues"
                 target="_blank"
@@ -220,7 +222,7 @@ export default function DashboardLayout({
                 Report Issue
               </a>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span>Made with</span>
               <svg
                 width="16"

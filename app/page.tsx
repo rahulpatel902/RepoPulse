@@ -177,42 +177,48 @@ export default function Home() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            <FeatureCard
-              icon={Zap}
-              title="Real-time Updates"
-              description="Get instant notifications about issues, pull requests, and repository activities."
-              className="animate-fade-in-up"
-            />
-            <FeatureCard
-              icon={GitPullRequest}
-              title="PR Tracking"
-              description="Monitor pull request status, reviews, and merge conflicts efficiently."
-              className="animate-fade-in-up [animation-delay:150ms]"
-            />
-            <FeatureCard
-              icon={GitMerge}
-              title="Issue Management"
-              description="Track and manage issues across multiple repositories in one place."
-              className="animate-fade-in-up [animation-delay:300ms]"
-            />
-            <FeatureCard
-              icon={BarChart2}
-              title="Analytics"
-              description="Visualize repository trends, contribution stats, and team performance."
-              className="animate-fade-in-up [animation-delay:450ms]"
-            />
-            <FeatureCard
-              icon={Bell}
-              title="Smart Notifications"
-              description="Customizable alerts for the events that matter most to you."
-              className="animate-fade-in-up [animation-delay:600ms]"
-            />
-            <FeatureCard
-              icon={Rocket}
-              title="Release Monitoring"
-              description="Never miss a release with automated notifications and changelog tracking."
-              className="animate-fade-in-up [animation-delay:750ms]"
-            />
+            <div className="animate-fade-in-up">
+              <FeatureCard
+                icon={Zap}
+                title="Real-time Updates"
+                description="Get instant notifications about issues, pull requests, and repository activities."
+              />
+            </div>
+            <div className="animate-fade-in-up [animation-delay:150ms]">
+              <FeatureCard
+                icon={GitPullRequest}
+                title="PR Tracking"
+                description="Monitor pull request status, reviews, and merge conflicts efficiently."
+              />
+            </div>
+            <div className="animate-fade-in-up [animation-delay:300ms]">
+              <FeatureCard
+                icon={GitMerge}
+                title="Issue Management"
+                description="Track and manage issues across multiple repositories in one place."
+              />
+            </div>
+            <div className="animate-fade-in-up [animation-delay:450ms]">
+              <FeatureCard
+                icon={BarChart2}
+                title="Analytics"
+                description="Visualize repository trends, contribution stats, and team performance."
+              />
+            </div>
+            <div className="animate-fade-in-up [animation-delay:600ms]">
+              <FeatureCard
+                icon={Bell}
+                title="Smart Notifications"
+                description="Customizable alerts for the events that matter most to you."
+              />
+            </div>
+            <div className="animate-fade-in-up [animation-delay:750ms]">
+              <FeatureCard
+                icon={Rocket}
+                title="Release Monitoring"
+                description="Never miss a release with automated notifications and changelog tracking."
+              />
+            </div>
           </div>
         </div>
       </section>

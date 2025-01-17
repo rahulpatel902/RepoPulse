@@ -254,3 +254,46 @@
 
 
 can you add Repository Health Tab:
+
+
+---
+
+now that the  limit is 1000 it takes longer time as it do :
+-Make up to 10 requests of 100 items each (GitHub's max per page)
+-Combine all results until it reaches 1000 items or runs out of data
+-Show the actual number of commits, issues, and PRs up to 1000
+
+optmize it more  based on the timeRangeOptions
+
+
+---
+
+my default it : This Week: Up to 400 items (4 requests max) after it loads this : let it load Last Quarter : last quater in backgroun so that ... you know hat i mean right ?
+
+--
+
+since the  { value: '90', label: 'Last Quarter', group: 'Months' }, is load silently then it can fetch thses data from it ? :
+    { value: '14', label: 'Last 2 Weeks', group: 'Weeks' },
+    { value: '21', label: 'Last 3 Weeks', group: 'Weeks' },
+    { value: '30', label: 'This Month', group: 'Months' },
+    { value: '60', label: 'Last 2 Months', group: 'Months' },
+
+--
+
+i thing that the option last 2 month and  last quater exceeds the limit of 1000 so increse it 
+--
+
+
+change the limt to max 2000 :
+
+also update this : 
+
+-Today/Yesterday: Only fetches up to 200 items (2 requests max)
+-This Week: Up to 400 items (4 requests max)
+-2 Weeks: Up to 600 items (6 requests max)
+-3 Weeks: Up to 700 items (7 requests max)
+
+-This Month: Up to 1000 items (10 requests max)
+-Last 2 Months: Up to 1500 items  (15 requests max)
+
+-Last Quarter: Up to 2000 items (20 requests max)

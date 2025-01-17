@@ -113,8 +113,7 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
     try {
       const github = new GitHubAPI(accessToken);
       const [owner, repo] = repository.full_name.split('/');
-      const days = parseInt(timeRange);
-
+      
       const [
         commitsData,
         issuesData,
@@ -124,10 +123,10 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
         languagesData,
         healthData
       ] = await Promise.all([
-        github.getCommitActivity(owner, repo, days),
-        github.getIssueActivity(owner, repo, days),
-        github.getPullRequestActivity(owner, repo, days),
-        github.getContributorsInRange(owner, repo, days),
+        github.getCommitActivity(owner, repo, timeRange),
+        github.getIssueActivity(owner, repo, timeRange),
+        github.getPullRequestActivity(owner, repo, timeRange),
+        github.getContributorsInRange(owner, repo, timeRange),
         github.getContributors(owner, repo),
         github.getLanguages(owner, repo),
         github.getRepositoryHealth(owner, repo)

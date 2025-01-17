@@ -314,42 +314,33 @@ export class GitHubAPI {
         return this.fetchWithCache(`/repos/${owner}/${repo}/contributors`);
     }
 
-    async getContributorsInRange(owner: string, repo: string, days: number): Promise<{ login: string; contributions: number }[]> {
-        const endDate = new Date();
-        endDate.setHours(23, 59, 59, 999); // End of current day
-
-        const startDate = new Date();
-        if (days === 1) {
-          // For "Today", start at beginning of current day
-          startDate.setHours(0, 0, 0, 0);
-        } else if (days === 2) {
-          // For "Yesterday & Today", start at beginning of yesterday
-          startDate.setDate(startDate.getDate() - 1);
-          startDate.setHours(0, 0, 0, 0);
-        } else {
-          // For other ranges, go back the specified number of days
-          startDate.setDate(startDate.getDate() - days);
-        }
+    async getContributorsInRange(owner: string, repo: string, timeRange: string): Promise<{ login: string; contributions: number }[]> {
+        const { startDate, endDate } = this.getDateRangeForTimeRange(timeRange);
 
         // Get commits in the date range to count unique contributors
-        const commits = await this.fetchWithCache(
-          `/repos/${owner}/${repo}/commits?since=${startDate.toISOString()}&until=${endDate.toISOString()}&per_page=100`
+        const commits = await this.fetchPaginatedBatch(
+            `/repos/${owner}/${repo}/commits`,
+            timeRange,
+            {
+                since: startDate.toISOString(),
+                until: endDate.toISOString()
+            }
         );
 
         // Create a map to count contributions per user
         const contributorMap = new Map<string, number>();
         
         for (const commit of commits) {
-          if (commit.author) {
-            const login = commit.author.login;
-            contributorMap.set(login, (contributorMap.get(login) || 0) + 1);
-          }
+            if (commit.author) {
+                const login = commit.author.login;
+                contributorMap.set(login, (contributorMap.get(login) || 0) + 1);
+            }
         }
 
         // Convert map to array and sort by contributions
         const contributors = Array.from(contributorMap.entries()).map(([login, contributions]) => ({
-          login,
-          contributions
+            login,
+            contributions
         }));
 
         return contributors.sort((a, b) => b.contributions - a.contributions);

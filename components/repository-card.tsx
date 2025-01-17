@@ -2,7 +2,7 @@
 
 import { Repository } from "@/lib/github";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock, Activity } from "lucide-react";
+import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock, Activity, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,6 +15,7 @@ interface RepositoryCardProps {
   onRemove?: () => void;
   isTracked?: boolean;
   isMinimized?: boolean;
+  isSelected?: boolean;
 }
 
 // Helper function to determine text color based on background
@@ -92,6 +93,7 @@ export function RepositoryCard({
   onRemove,
   isTracked = false,
   isMinimized = false,
+  isSelected = false,
 }: RepositoryCardProps) {
   const [isTitleTruncated, setIsTitleTruncated] = useState(false);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,28 @@ export function RepositoryCard({
         )}
         onClick={onSelect}
       >
+        {isSelected && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-1/2 -translate-y-1/2 right-4 md:group-hover:right-12 md:right-4 transition-all duration-200 h-8 w-8 text-primary right-12"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+          </Button>
+        )}
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="absolute top-1/2 -translate-y-1/2 right-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity h-8 w-8 hover:text-red-500"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
         <CardContent className="pt-6">
           <div className="flex items-center gap-3">
             <img
@@ -178,19 +202,6 @@ export function RepositoryCard({
                 )}
               </div>
             </div>
-            {isTracked && onRemove && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove();
-                }}
-              >
-                <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -205,17 +216,26 @@ export function RepositoryCard({
       )}
       onClick={onSelect}
     >
+      {isSelected && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-4 md:group-hover:right-12 md:right-4 transition-all duration-200 h-8 w-8 text-primary right-12"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+        </Button>
+      )}
       {isTracked && onRemove && (
         <Button
           variant="ghost"
           size="icon"
-          className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
           }}
+          className="absolute top-4 right-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity h-8 w-8 hover:text-red-500"
         >
-          <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+          <X className="h-4 w-4" />
         </Button>
       )}
       <CardContent className="pt-6">
@@ -240,7 +260,7 @@ export function RepositoryCard({
                   )}
                 </h3>
               </div>
-              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+              <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   {repository.private ? (
                     <Lock className="w-3.5 h-3.5 -mt-[1px]" />
@@ -254,14 +274,14 @@ export function RepositoryCard({
                   <Activity className="w-4 h-4 text-primary animate-pulse -mt-[1px]" />
                   <span>{getTimeAgo(repository.pushed_at)}</span>
                 </div>
-              </p>
+              </div>
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
+          <div className="text-sm text-muted-foreground line-clamp-1 mb-2">
             {repository.description || "No description provided"}
-          </p>
+          </div>
 
           {/* Topics */}
           <div className="flex flex-wrap gap-1.5 overflow-hidden h-6 mb-2">
