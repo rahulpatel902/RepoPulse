@@ -70,11 +70,39 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
     return option ? option.label : 'Custom range';
   };
 
+  const formatTooltipDate = (date: string) => {
+    const dateObj = new Date(date);
+    const now = new Date();
+    const isCurrentYear = dateObj.getFullYear() === now.getFullYear();
+    
+    return dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: isCurrentYear ? undefined : '2-digit'
+    });
+  };
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <p className="font-medium">{formatTooltipDate(label)}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm text-muted-foreground">
+              {entry.name || entry.dataKey}: {entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   const calculateActivityScore = (data: AnalyticsData): number => {
@@ -440,10 +468,7 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                       />
                       <YAxis className="text-sm" />
                       <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))',
-                          border: '1px solid hsl(var(--border))'
-                        }}
+                        content={<CustomTooltip />}
                       />
                       <Line 
                         type="monotone" 
@@ -491,10 +516,7 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                       />
                       <YAxis className="text-sm" />
                       <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))',
-                          border: '1px solid hsl(var(--border))'
-                        }}
+                        content={<CustomTooltip />}
                       />
                       <Bar dataKey="opened" name="Opened" fill="hsl(var(--primary))" />
                       <Bar dataKey="closed" name="Closed" fill="hsl(var(--destructive))" />
