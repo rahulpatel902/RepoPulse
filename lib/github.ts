@@ -578,7 +578,12 @@ export class GitHubAPI {
     async getBranchActivity(owner: string, repo: string, branch: string): Promise<{ date: string; count: number }> {
         try {
             const endpoint = `/repos/${owner}/${repo}/commits`;
-            const response = await fetch(`${this.baseUrl}${endpoint}?sha=${branch}&per_page=1`, {
+            const params = new URLSearchParams({
+                sha: branch,
+                per_page: '1'
+            }).toString();
+
+            const response = await fetch(`${this.baseUrl}${endpoint}?${params}`, {
                 headers: {
                     'Authorization': `Bearer ${this.accessToken}`,
                     'Accept': 'application/vnd.github.v3+json',
@@ -587,18 +592,26 @@ export class GitHubAPI {
             });
 
             if (!response.ok) {
-                console.error(`Error fetching branch activity: ${response.statusText}`);
-                return { date: '', count: 0 };
+                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
             }
 
             const commits = await response.json();
-            if (commits && commits.length > 0) {
-                return {
-                    date: commits[0].commit.author.date,
-                    count: 1
-                };
+            
+            if (!Array.isArray(commits) || commits.length === 0) {
+                console.warn(`No commits found for branch ${branch}`);
+                return { date: '', count: 0 };
             }
-            return { date: '', count: 0 };
+
+            const commit = commits[0];
+            if (!commit?.commit?.author?.date) {
+                console.warn(`Invalid commit data structure for branch ${branch}`);
+                return { date: '', count: 0 };
+            }
+
+            return {
+                date: commit.commit.author.date,
+                count: 1
+            };
         } catch (error) {
             console.error(`Error fetching activity for branch ${branch}:`, error);
             return { date: '', count: 0 };
@@ -617,10 +630,7 @@ export class GitHubAPI {
                         const activity = await this.getBranchActivity(owner, repo, branch.name);
                         return {
                             ...branch,
-                            lastCommit: {
-                                date: activity.date,
-                                count: activity.count
-                            }
+                            lastCommit: activity
                         };
                     } catch (error) {
                         console.error(`Error processing branch ${branch.name}:`, error);
