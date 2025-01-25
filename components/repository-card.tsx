@@ -137,7 +137,8 @@ export function RepositoryCard({
   const sortedBranches = useMemo(() => {
     if (!branches.length) return [];
     
-    const defaultBranch = branches.filter(b => b.name === repository.default_branch);
+    // Ensure default branch is always first
+    const defaultBranch = branches.find(b => b.name === repository.default_branch);
     const otherBranches = branches
       .filter(b => b.name !== repository.default_branch)
       .sort((a, b) => {
@@ -147,7 +148,7 @@ export function RepositoryCard({
         return dateB - dateA;
       });
     
-    return [...defaultBranch, ...otherBranches];
+    return defaultBranch ? [defaultBranch, ...otherBranches] : otherBranches;
   }, [branches, repository.default_branch]);
 
   useEffect(() => {
@@ -469,51 +470,65 @@ export function RepositoryCard({
                             {error}
                           </div>
                         ) : sortedBranches.length > 0 ? (
-                          sortedBranches.map((branch) => (
-                            <CommandItem
-                              key={branch.name}
-                              value={branch.name}
-                              onSelect={() => {
-                                setSelectedBranch(branch.name);
-                                setOpen(false);
-                              }}
-                              className="flex items-center justify-between py-1.5 px-2"
-                            >
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                {branch.name === repository.default_branch ? (
-                                  <GitMerge className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                                ) : (
-                                  <GitBranch className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                          <>
+                            {/* Default branch section */}
+                            {sortedBranches[0]?.name === repository.default_branch && (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground bg-muted/50">
+                                Default Branch
+                              </div>
+                            )}
+                            {sortedBranches.map((branch) => (
+                              <CommandItem
+                                key={branch.name}
+                                value={branch.name}
+                                onSelect={() => {
+                                  setSelectedBranch(branch.name);
+                                  setOpen(false);
+                                }}
+                                className={cn(
+                                  "flex items-center justify-between py-1.5 px-2 relative",
+                                  selectedBranch === branch.name && "bg-primary/10"
                                 )}
-                                <span className="truncate text-sm" title={branch.name}>
-                                  {branch.name}
-                                </span>
-                                {branch.lastCommit?.date && (
-                                  <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-                                    {getTimeAgo(branch.lastCommit.date)}
+                              >
+                                {selectedBranch === branch.name && (
+                                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
+                                )}
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  {branch.name === repository.default_branch ? (
+                                    <GitMerge className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                  ) : (
+                                    <GitBranch className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                  )}
+                                  <span className="truncate text-sm" title={branch.name}>
+                                    {branch.name}
                                   </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                {branch.name === repository.default_branch && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="h-5 text-[10px] font-medium bg-muted/50 border-0"
-                                  >
-                                    default
-                                  </Badge>
-                                )}
-                                {branch.protected && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="h-5 text-[10px] font-medium bg-muted/50 border-0"
-                                  >
-                                    protected
-                                  </Badge>
-                                )}
-                              </div>
-                            </CommandItem>
-                          ))
+                                  {branch.lastCommit?.date && (
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                      {getTimeAgo(branch.lastCommit.date)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  {branch.name === repository.default_branch && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="h-5 text-[10px] font-medium bg-primary/10 border-0"
+                                    >
+                                      default
+                                    </Badge>
+                                  )}
+                                  {branch.protected && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="h-5 text-[10px] font-medium bg-muted/50 border-0"
+                                    >
+                                      protected
+                                    </Badge>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </>
                         ) : (
                           <div className="py-6 text-center text-sm text-muted-foreground">
                             <div className="mb-2">
