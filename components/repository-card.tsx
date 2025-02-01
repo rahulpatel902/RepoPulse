@@ -2,7 +2,7 @@
 
 import { Repository, Branch, GitHubAPI } from "@/lib/github";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock, Activity, CheckCircle2, GitBranch, Loader2, GitMerge, AlertCircle } from "lucide-react";
+import { Star, GitFork, X, ExternalLink, Globe, Link2, Lock, Activity, CheckCircle2, GitBranch, Loader2, GitMerge, AlertCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -424,127 +425,155 @@ export function RepositoryCard({
                     <TooltipContent>Branches</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <PopoverContent className="w-[300px] p-0 overflow-hidden" align="start">
-                  <Command className="overflow-hidden">
-                    <CommandInput 
-                      placeholder="Search branches..." 
-                      className="border-none focus:ring-0 h-9"
-                    />
-                    <CommandEmpty className="py-2 px-2 text-sm">No branches found.</CommandEmpty>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <div className="flex items-center justify-between px-3 py-2 border-b">
+                    <h4 className="font-semibold text-sm">Branches</h4>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-transparent"
+                      onClick={() => setOpen(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Find a branch..." 
+                        className="pl-9 h-9 border-0 focus-visible:ring-1 bg-muted/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="border-b">
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground bg-muted/30">
+                      Branches
+                    </div>
                     <div 
-                      className="max-h-[300px] overflow-auto [scrollbar-width:thin] [scrollbar-color:rgb(0_0_0_/_0.2)_transparent] hover:[scrollbar-color:rgb(0_0_0_/_0.3)_transparent]"
+                      className="max-h-[300px] overflow-auto"
                       style={{
-                        msOverflowStyle: 'none',
                         scrollbarWidth: 'thin',
+                        scrollbarColor: 'rgb(0 0 0 / 0.2) transparent',
                       }}
                     >
                       <style jsx>{`
                         div::-webkit-scrollbar {
-                          width: 8px;
+                          width: 6px;
                           background: transparent;
                         }
                         div::-webkit-scrollbar-thumb {
                           background-color: rgb(0 0 0 / 0.2);
                           border-radius: 9999px;
-                          border: 2px solid transparent;
-                          background-clip: content-box;
                         }
                         div::-webkit-scrollbar-thumb:hover {
                           background-color: rgb(0 0 0 / 0.3);
                         }
-                        div::-webkit-scrollbar-track {
-                          background: transparent;
-                        }
                       `}</style>
-                      <CommandGroup>
-                        {isLoadingBranches ? (
-                          <div className="flex flex-col items-center justify-center py-8 gap-2">
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                            <p className="text-sm text-muted-foreground">Loading branches...</p>
-                          </div>
-                        ) : error ? (
-                          <div className="py-6 text-center text-sm text-destructive">
-                            <div className="mb-2">
-                              <AlertCircle className="h-8 w-8 mx-auto opacity-50" />
-                            </div>
-                            {error}
-                          </div>
-                        ) : sortedBranches.length > 0 ? (
-                          <>
-                            {/* Default branch section */}
-                            {sortedBranches[0]?.name === repository.default_branch && (
-                              <div className="px-2 py-1.5 text-xs text-muted-foreground bg-muted/50">
-                                Default Branch
+                      {isLoadingBranches ? (
+                        <div className="flex flex-col items-center justify-center py-8 gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Loading branches...</p>
+                        </div>
+                      ) : error ? (
+                        <div className="py-6 text-center">
+                          <AlertCircle className="h-5 w-5 mx-auto mb-2 text-destructive opacity-70" />
+                          <p className="text-sm text-destructive">{error}</p>
+                        </div>
+                      ) : sortedBranches.length > 0 ? (
+                        <>
+                          {/* Default branch section */}
+                          {sortedBranches[0]?.name === repository.default_branch && (
+                            <>
+                              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground bg-muted/30">
+                                Default branch
                               </div>
-                            )}
-                            {sortedBranches.map((branch) => (
-                              <CommandItem
+                              <div
+                                key={sortedBranches[0].name}
+                                className={cn(
+                                  "flex items-center justify-between py-1.5 px-3 hover:bg-accent cursor-pointer",
+                                  selectedBranch === sortedBranches[0].name && "bg-accent"
+                                )}
+                                onClick={() => {
+                                  setSelectedBranch(sortedBranches[0].name);
+                                  setOpen(false);
+                                }}
+                                role="button"
+                                tabIndex={0}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <GitMerge className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                                  <span className="truncate text-sm font-medium" title={sortedBranches[0].name}>
+                                    {sortedBranches[0].name}
+                                  </span>
+                                </div>
+                                <Badge 
+                                  variant="outline" 
+                                  className="h-5 px-1.5 text-[10px] font-medium border-primary/20 bg-primary/10 text-primary"
+                                >
+                                  default
+                                </Badge>
+                              </div>
+                              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground bg-muted/30">
+                                Other branches
+                              </div>
+                            </>
+                          )}
+                          {/* Other branches */}
+                          {sortedBranches
+                            .filter(branch => branch.name !== repository.default_branch)
+                            .map((branch) => (
+                              <div
                                 key={branch.name}
-                                value={branch.name}
-                                onSelect={() => {
+                                className={cn(
+                                  "flex items-center justify-between py-1.5 px-3 hover:bg-accent cursor-pointer",
+                                  selectedBranch === branch.name && "bg-accent"
+                                )}
+                                onClick={() => {
                                   setSelectedBranch(branch.name);
                                   setOpen(false);
                                 }}
-                                className={cn(
-                                  "flex items-center justify-between py-1.5 px-2 relative",
-                                  selectedBranch === branch.name && "bg-primary/10"
-                                )}
+                                role="button"
+                                tabIndex={0}
                               >
-                                {selectedBranch === branch.name && (
-                                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
-                                )}
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  {branch.name === repository.default_branch ? (
-                                    <GitMerge className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                                  ) : (
-                                    <GitBranch className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                                  )}
-                                  <span className="truncate text-sm" title={branch.name}>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <GitBranch className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                                  <span className="truncate text-sm font-medium" title={branch.name}>
                                     {branch.name}
                                   </span>
-                                  {branch.lastCommit?.date && (
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-                                      {getTimeAgo(branch.lastCommit.date)}
-                                    </span>
-                                  )}
                                 </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                  {branch.name === repository.default_branch && (
-                                    <Badge 
-                                      variant="outline" 
-                                      className="h-5 text-[10px] font-medium bg-primary/10 border-0"
-                                    >
-                                      default
-                                    </Badge>
-                                  )}
-                                  {branch.protected && (
-                                    <Badge 
-                                      variant="outline" 
-                                      className="h-5 text-[10px] font-medium bg-muted/50 border-0"
-                                    >
-                                      protected
-                                    </Badge>
-                                  )}
-                                </div>
-                              </CommandItem>
+                                {branch.protected && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="h-5 px-1.5 text-[10px] font-medium border-muted bg-muted/50"
+                                  >
+                                    protected
+                                  </Badge>
+                                )}
+                              </div>
                             ))}
-                          </>
-                        ) : (
-                          <div className="py-6 text-center text-sm text-muted-foreground">
-                            <div className="mb-2">
-                              <GitBranch className="h-8 w-8 mx-auto opacity-50" />
-                            </div>
-                            No branches available
-                          </div>
-                        )}
-                      </CommandGroup>
-                      {sortedBranches.length > 0 && (
-                        <div className="p-2 text-xs text-muted-foreground border-t bg-muted/50">
-                          {sortedBranches.length} {sortedBranches.length === 1 ? 'branch' : 'branches'} found
+                        </>
+                      ) : (
+                        <div className="py-6 text-center">
+                          <GitBranch className="h-5 w-5 mx-auto mb-2 text-muted-foreground opacity-70" />
+                          <p className="text-sm text-muted-foreground">No branches available</p>
                         </div>
                       )}
                     </div>
-                  </Command>
+                  </div>
+                  <div className="p-2 text-xs text-muted-foreground bg-muted/30">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 text-xs hover:bg-transparent hover:text-primary"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open(`${repository.html_url}/branches`, '_blank');
+                      }}
+                    >
+                      View all branches
+                    </Button>
+                  </div>
                 </PopoverContent>
               </Popover>
             </div>

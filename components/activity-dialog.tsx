@@ -359,19 +359,18 @@ export function ActivityDialog({
                     <div className="pt-4">
                       {hasNextPage && !isLoading && (
                         <Button
-                          variant="ghost"
-                          size="sm"
+                          variant="outline"
                           onClick={onLoadMore}
-                          className="w-full h-8 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5"
+                          className="w-full py-2 px-4 border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-center gap-2 rounded-lg shadow-sm"
                         >
-                          <ArrowDown className="h-3.5 w-3.5" />
-                          Load more
+                          <ArrowDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
+                          <span className="font-medium">Load More</span>
                         </Button>
                       )}
                       {isLoading && (
-                        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Loading...
+                        <div className="flex items-center justify-center gap-2 p-2 text-sm text-muted-foreground bg-muted/50 rounded-lg">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Loading more items...</span>
                         </div>
                       )}
                     </div>
