@@ -475,9 +475,9 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                       strokeWidth={2}
                       dot={false}
                       activeDot={{
-                        r: 4,
+                        r: 6,
                         stroke: "hsl(var(--background))",
-                        strokeWidth: 2,
+                        strokeWidth: 2.5,
                         fill: "hsl(var(--primary))"
                       }}
                     />
