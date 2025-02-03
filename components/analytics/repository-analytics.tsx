@@ -446,50 +446,48 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
         </div>
 
         <TabsContent value="activity" className="space-y-4">
+          {/* Commit Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Commit Activity</CardTitle>
+              <CardDescription>Daily commit frequency over time</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart 
+                    data={analyticsData.commits}
+                    margin={{ top: 5, right: 10, left: -32, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      className="text-sm"
+                      tickFormatter={formatDate}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis className="text-sm" />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Issues Activity */}
             <Card>
               <CardHeader>
-                <CardTitle>Commit Activity</CardTitle>
-                <CardDescription>Daily commit frequency over time</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart 
-                      data={analyticsData.commits}
-                      margin={{ top: 5, right: 10, left: -32, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="date" 
-                        className="text-sm"
-                        tickFormatter={formatDate}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis className="text-sm" />
-                      <Tooltip 
-                        content={<CustomTooltip />}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="count" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div>
-                  <CardTitle>Issues & Pull Requests</CardTitle>
-                  <CardDescription>Daily opened and closed items</CardDescription>
-                </div>
-                <div className="flex items-center space-x-4">
+                <CardTitle>Issue Activity</CardTitle>
+                <CardDescription>Daily issue activity</CardDescription>
+                <div className="flex items-center space-x-4 mt-2">
                   <div className="flex items-center space-x-1">
                     <div className="w-3 h-3 bg-primary rounded" />
                     <span className="text-sm text-muted-foreground">Opened</span>
@@ -500,8 +498,8 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="pt-10">
-                <div className="h-[300px]">
+              <CardContent>
+                <div className="h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart 
                       data={analyticsData.issues}
@@ -515,13 +513,93 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                         interval="preserveStartEnd"
                       />
                       <YAxis className="text-sm" />
-                      <Tooltip 
-                        content={<CustomTooltip />}
-                      />
+                      <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="opened" name="Opened" fill="hsl(var(--primary))" />
                       <Bar dataKey="closed" name="Closed" fill="hsl(var(--destructive))" />
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="flex items-center justify-between mt-4 text-sm">
+                  <div>
+                    <div className="font-medium">Total Opened</div>
+                    <div className="text-muted-foreground">
+                      {analyticsData.issues.reduce((sum, day) => sum + day.opened, 0)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Total Closed</div>
+                    <div className="text-muted-foreground">
+                      {analyticsData.issues.reduce((sum, day) => sum + day.closed, 0)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Resolution Rate</div>
+                    <div className="text-muted-foreground">
+                      {Math.round((analyticsData.issues.reduce((sum, day) => sum + day.closed, 0) / 
+                        Math.max(analyticsData.issues.reduce((sum, day) => sum + day.opened, 0), 1)) * 100)}%
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pull Requests Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Pull Request Activity</CardTitle>
+                <CardDescription>Daily PR activity</CardDescription>
+                <div className="flex items-center space-x-4 mt-2">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-primary rounded" />
+                    <span className="text-sm text-muted-foreground">Opened</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-3 h-3 bg-destructive rounded" />
+                    <span className="text-sm text-muted-foreground">Merged</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart 
+                      data={analyticsData.pullRequests}
+                      margin={{ top: 5, right: 10, left: -32, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        className="text-sm"
+                        tickFormatter={formatDate}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis className="text-sm" />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="opened" name="Opened" fill="hsl(var(--primary))" />
+                      <Bar dataKey="closed" name="Merged" fill="hsl(var(--destructive))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex items-center justify-between mt-4 text-sm">
+                  <div>
+                    <div className="font-medium">Total Opened</div>
+                    <div className="text-muted-foreground">
+                      {analyticsData.pullRequests.reduce((sum, day) => sum + day.opened, 0)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Total Merged</div>
+                    <div className="text-muted-foreground">
+                      {analyticsData.pullRequests.reduce((sum, day) => sum + day.closed, 0)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Merge Rate</div>
+                    <div className="text-muted-foreground">
+                      {Math.round((analyticsData.pullRequests.reduce((sum, day) => sum + day.closed, 0) / 
+                        Math.max(analyticsData.pullRequests.reduce((sum, day) => sum + day.opened, 0), 1)) * 100)}%
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
