@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { GitHubAPI, Repository, RepositoryHealth } from "@/lib/github";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { Loader2, TrendingUp, GitPullRequest, Users, Code, ArrowUpRight, ArrowDownRight, Download, RefreshCw, AlertCircle } from "lucide-react";
@@ -453,7 +453,7 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
               <CardDescription>Daily commit frequency over time</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
-              <div className="h-[300px]">
+              <div className="h-[310px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart 
                     data={analyticsData.commits}
@@ -469,11 +469,17 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                     <YAxis className="text-sm" />
                     <Tooltip content={<CustomTooltip />} />
                     <Line 
-                      type="monotone" 
+                      type="natural" 
                       dataKey="count" 
-                      stroke="hsl(var(--primary))" 
+                      stroke="hsl(var(--primary))"
                       strokeWidth={2}
                       dot={false}
+                      activeDot={{
+                        r: 4,
+                        stroke: "hsl(var(--background))",
+                        strokeWidth: 2,
+                        fill: "hsl(var(--primary))"
+                      }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -489,17 +495,17 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                 <CardDescription>Daily issue activity</CardDescription>
                 <div className="flex items-center space-x-4 mt-2">
                   <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-primary rounded" />
+                    <div className="w-3 h-3 bg-primary rounded" style={{ opacity: 0.7 }} />
                     <span className="text-sm text-muted-foreground">Opened</span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-destructive rounded" />
+                    <div className="w-3 h-3 bg-destructive rounded" style={{ opacity: 0.7 }} />
                     <span className="text-sm text-muted-foreground">Closed</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[250px]">
+                <div className="h-[310px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart 
                       data={analyticsData.issues}
@@ -513,9 +519,40 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                         interval="preserveStartEnd"
                       />
                       <YAxis className="text-sm" />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="opened" name="Opened" fill="hsl(var(--primary))" />
-                      <Bar dataKey="closed" name="Closed" fill="hsl(var(--destructive))" />
+                      <Tooltip 
+                        content={<CustomTooltip />}
+                        cursor={{ fill: 'rgba(96, 27, 27,0.18)' }}
+                      />
+                      <Bar 
+                        dataKey="opened" 
+                        name="Opened" 
+                        fill="hsl(var(--primary))" 
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      >
+                        {analyticsData.issues.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill="hsl(var(--primary))"
+                            fillOpacity={0.7}
+                          />
+                        ))}
+                      </Bar>
+                      <Bar 
+                        dataKey="closed" 
+                        name="Closed" 
+                        fill="hsl(var(--destructive))" 
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      >
+                        {analyticsData.issues.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill="hsl(var(--destructive))"
+                            fillOpacity={0.7}
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -550,17 +587,17 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                 <CardDescription>Daily PR activity</CardDescription>
                 <div className="flex items-center space-x-4 mt-2">
                   <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-primary rounded" />
+                    <div className="w-3 h-3 bg-primary rounded" style={{ opacity: 0.7 }} />
                     <span className="text-sm text-muted-foreground">Opened</span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-destructive rounded" />
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(142, 76%, 36%)", opacity: 0.7 }} />
                     <span className="text-sm text-muted-foreground">Merged</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[250px]">
+                <div className="h-[310px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart 
                       data={analyticsData.pullRequests}
@@ -574,9 +611,40 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                         interval="preserveStartEnd"
                       />
                       <YAxis className="text-sm" />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="opened" name="Opened" fill="hsl(var(--primary))" />
-                      <Bar dataKey="closed" name="Merged" fill="hsl(var(--destructive))" />
+                      <Tooltip 
+                        content={<CustomTooltip />}
+                        cursor={{ fill: 'rgba(20, 123, 59,0.18)' }}
+                      />
+                      <Bar 
+                        dataKey="opened" 
+                        name="Opened" 
+                        fill="hsl(var(--primary))" 
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      >
+                        {analyticsData.pullRequests.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill="hsl(var(--primary))"
+                            fillOpacity={0.7}
+                          />
+                        ))}
+                      </Bar>
+                      <Bar 
+                        dataKey="closed" 
+                        name="Merged" 
+                        fill="hsl(142, 76%, 36%)" 
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      >
+                        {analyticsData.pullRequests.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill="hsl(142, 76%, 36%)"
+                            fillOpacity={0.7}
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
