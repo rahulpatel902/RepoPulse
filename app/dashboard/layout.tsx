@@ -176,7 +176,7 @@ export default function DashboardLayout({
       <footer className="border-t mt-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex flex-wrap justify-center sm:justify-start items-center gap-4">
+            <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3">
               <div className="flex items-center gap-2">
                 <span>Powered by</span>
                 <a
@@ -222,7 +222,7 @@ export default function DashboardLayout({
                 Report Issue
               </a>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <span>Made with</span>
               <svg
                 width="16"
