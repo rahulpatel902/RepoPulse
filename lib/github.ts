@@ -327,7 +327,7 @@ export class GitHubAPI {
         return this.fetchWithCache(`/repos/${owner}/${repo}/contributors`);
     }
 
-    async getContributorsInRange(owner: string, repo: string, timeRange: string): Promise<{ login: string; contributions: number }[]> {
+    async getContributorsInRange(owner: string, repo: string, timeRange: string): Promise<{ login: string; contributions: number; avatar_url: string }[]> {
         const { startDate, endDate } = this.getDateRangeForTimeRange(timeRange);
 
         // Get commits in the date range to count unique contributors
@@ -340,20 +340,23 @@ export class GitHubAPI {
             }
         );
 
-        // Create a map to count contributions per user
-        const contributorMap = new Map<string, number>();
+        // Create a map to count contributions and store avatar URLs per user
+        const contributorMap = new Map<string, { contributions: number; avatar_url: string }>();
         
         for (const commit of commits) {
             if (commit.author) {
-                const login = commit.author.login;
-                contributorMap.set(login, (contributorMap.get(login) || 0) + 1);
+                const { login, avatar_url } = commit.author;
+                const current = contributorMap.get(login) || { contributions: 0, avatar_url };
+                current.contributions++;
+                contributorMap.set(login, current);
             }
         }
 
         // Convert map to array and sort by contributions
-        const contributors = Array.from(contributorMap.entries()).map(([login, contributions]) => ({
+        const contributors = Array.from(contributorMap.entries()).map(([login, data]) => ({
             login,
-            contributions
+            contributions: data.contributions,
+            avatar_url: data.avatar_url
         }));
 
         return contributors.sort((a, b) => b.contributions - a.contributions);

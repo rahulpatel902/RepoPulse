@@ -9,16 +9,25 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Image from 'next/image';
+import { getLanguageColor } from "@/lib/language-colors";
 
 interface AnalyticsData {
   commits: { date: string; count: number }[];
   issues: { date: string; opened: number; closed: number }[];
   pullRequests: { date: string; opened: number; closed: number }[];
-  contributors: { login: string; contributions: number }[];
-  topContributors: { login: string; contributions: number }[];
+  contributors: { login: string; contributions: number; avatar_url: string }[];
   totalContributors: number;
   languages: { name: string; percentage: number }[];
   health: RepositoryHealth;
+  summaryStats?: {
+    commitsTotal: number;
+    commitsAverage: number;
+    issuesOpened: number;
+    issuesClosed: number;
+    prsOpened: number;
+    prsClosed: number;
+  };
 }
 
 interface RepositoryAnalyticsProps {
@@ -44,6 +53,8 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
   const [cachedData, setCachedData] = useState<Record<string, CachedData>>({});
   const [healthData, setHealthData] = useState<RepositoryHealth | null>(null);
   const refreshInterval = useRef<NodeJS.Timeout>();
+  const [visibleContributors, setVisibleContributors] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const timeRangeOptions = [
     { value: '1', label: 'Today', group: 'Recent' },
@@ -164,11 +175,22 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
         commits: commitsData,
         issues: issuesData,
         pullRequests: pullRequestsData,
-        contributors: contributorsData,
-        topContributors: contributorsData.slice(0, 10),
+        contributors: contributorsData.map(c => ({
+          login: c.login,
+          contributions: c.contributions,
+          avatar_url: c.avatar_url || `https://github.com/${c.login}.png`
+        })),
         totalContributors: contributorsData.length,
         languages: languagesData,
-        health: healthData
+        health: healthData,
+        summaryStats: {
+          commitsTotal: commitsData.reduce((sum, day) => sum + day.count, 0),
+          commitsAverage: commitsData.reduce((sum, day) => sum + day.count, 0) / parseInt(timeRange),
+          issuesOpened: issuesData.reduce((sum, day) => sum + day.opened, 0),
+          issuesClosed: issuesData.reduce((sum, day) => sum + day.closed, 0),
+          prsOpened: pullRequestsData.reduce((sum, day) => sum + day.opened, 0),
+          prsClosed: pullRequestsData.reduce((sum, day) => sum + day.closed, 0),
+        }
       };
 
       setAnalyticsData(newData);
@@ -233,7 +255,7 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
           closed: analyticsData.pullRequests.reduce((sum, day) => sum + day.closed, 0)
         },
         languages: analyticsData.languages,
-        topContributors: analyticsData.topContributors,
+        topContributors: analyticsData.contributors.slice(0, 10),
         activityScore: calculateActivityScore(analyticsData)
       },
       detailed: analyticsData
@@ -676,31 +698,139 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
 
         <TabsContent value="contributors" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Active Contributors</CardTitle>
-              <CardDescription>
-                Most active contributors ({getTimeRangeLabel(timeRange)})
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+              <div>
+                <CardTitle className="text-xl font-bold">Active Contributors</CardTitle>
+                <CardDescription className="mt-1">
+                  ~ {getTimeRangeLabel(timeRange)} ~ 
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
+                  <span>{Math.min(visibleContributors, analyticsData.contributors.length)} / {analyticsData.contributors.length}</span>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {analyticsData.topContributors.map((contributor, index) => (
-                  <div key={contributor.login} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{index + 1}</Badge>
-                        <span className="font-medium">{contributor.login}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {contributor.contributions} commits
-                      </span>
-                    </div>
-                    <Progress 
-                      value={(contributor.contributions / analyticsData.topContributors[0].contributions) * 100} 
-                      className="h-2"
-                    />
+            <CardContent className="p-0">
+              <div>
+                <div className="max-h-[485px] overflow-y-auto custom-scrollbar">
+                  <ul className="divide-y">
+                    {analyticsData.contributors.slice(0, visibleContributors).map((contributor, index) => (
+                      <li 
+                        key={contributor.login}
+                        className="group px-6 py-4 hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="relative">
+                              <div className="h-10 w-10 rounded-full overflow-hidden ring-2 ring-background">
+                                <Image
+                                  src={contributor.avatar_url}
+                                  alt={`${contributor.login}'s avatar`}
+                                  width={40}
+                                  height={40}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-background flex items-center justify-center text-xs font-medium">
+                                {index + 1}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <a 
+                                  href={`https://github.com/${contributor.login}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-medium hover:text-primary transition-colors"
+                                >
+                                  {contributor.login}
+                                </a>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-0.5">
+                                {((contributor.contributions / analyticsData.contributors.reduce((sum, c) => sum + c.contributions, 0)) * 100).toFixed(1)}% of total commits
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">{contributor.contributions}</div>
+                            <div className="text-sm text-muted-foreground">commits</div>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <Progress 
+                            value={
+                              (contributor.contributions / 
+                              analyticsData.contributors.reduce((sum, c) => sum + c.contributions, 0)) * 100
+                            }
+                            className="h-1.5"
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {visibleContributors < analyticsData.contributors.length && (
+                  <div className="px-6 py-4 border-t bg-card/50">
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        setIsLoadingMore(true);
+                        // Simulate a small delay for smooth transition
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                        setVisibleContributors(prev => prev + 10);
+                        setIsLoadingMore(false);
+                      }}
+                      disabled={isLoadingMore}
+                      className="w-full bg-background hover:bg-accent group relative h-9 px-4"
+                    >
+                      {isLoadingMore ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <svg 
+                            className="animate-spin h-4 w-4" 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            fill="none" 
+                            viewBox="0 0 24 24"
+                          >
+                            <circle 
+                              className="opacity-25" 
+                              cx="12" 
+                              cy="12" 
+                              r="10" 
+                              stroke="currentColor" 
+                              strokeWidth="4"
+                            />
+                            <path 
+                              className="opacity-75" 
+                              fill="currentColor" 
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                          </svg>
+                          <span>Loading...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2">
+                          <span>Show More Contributors</span>
+                          <svg 
+                            className="w-4 h-4 transition-transform group-hover:translate-y-0.5" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24" 
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={2} 
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </div>
+                      )}
+                    </Button>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -708,26 +838,73 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
 
         <TabsContent value="languages" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Language Distribution</CardTitle>
-              <CardDescription>Programming languages used in the repository</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+              <div>
+                <CardTitle className="text-xl font-bold">Language Distribution</CardTitle>
+                <CardDescription className="mt-1">Code composition by language</CardDescription>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {analyticsData.languages.map((language) => (
-                  <div key={language.name} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Code className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{language.name}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {language.percentage}%
+            <CardContent className="p-6">
+              <div className="space-y-8">
+                {/* Language Tags */}
+                <div className="flex flex-wrap gap-2 pb-4 border-b">
+                  {analyticsData.languages.map((language) => (
+                    <div
+                      key={language.name}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border bg-card hover:bg-accent transition-colors"
+                    >
+                      <div 
+                        className="h-3 w-3 rounded-full" 
+                        style={{ 
+                          backgroundColor: getLanguageColor(language.name) || '#6e7681'
+                        }}
+                      />
+                      <span className="font-medium">{language.name}</span>
+                      <span className="text-muted-foreground">
+                        {language.percentage.toFixed(1)}%
                       </span>
                     </div>
-                    <Progress value={language.percentage} className="h-2" />
+                  ))}
+                </div>
+
+                {/* Language Distribution */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold">Language Distribution</h4>
+                  <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-4">
+                      {analyticsData.languages
+                        .sort((a, b) => b.percentage - a.percentage)
+                        .map((language) => (
+                          <div key={language.name} className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="h-3 w-3 rounded-full" 
+                                  style={{ 
+                                    backgroundColor: getLanguageColor(language.name) || '#6e7681'
+                                  }}
+                                />
+                                <span className="font-medium">{language.name}</span>
+                              </div>
+                              <span className="text-muted-foreground">
+                                {language.percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500 ease-in-out"
+                                style={{
+                                  width: `${language.percentage}%`,
+                                  backgroundColor: getLanguageColor(language.name) || '#6e7681',
+                                  opacity: 0.8
+                                }}
+                              />
+                            </div>
+                          </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -760,7 +937,7 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Open Issues</span>
-                      <span className="text-sm font-medium">
+                      <span className="font-medium">
                         {summaryStats?.issuesOpened && summaryStats?.issuesClosed
                           ? summaryStats.issuesOpened - summaryStats.issuesClosed
                           : 0}
@@ -808,7 +985,7 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Open Pull Requests</span>
-                      <span className="text-sm font-medium">
+                      <span className="font-medium">
                         {summaryStats?.prsOpened && summaryStats?.prsClosed
                           ? summaryStats.prsOpened - summaryStats.prsClosed
                           : 0}
@@ -930,3 +1107,21 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
     </div>
   );
 }
+
+<style jsx global>{`
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+`}
+</style>
