@@ -18,6 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" type="image/png" sizes="512x512" href="/flaticon.svg" />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
           <ThemeProvider
