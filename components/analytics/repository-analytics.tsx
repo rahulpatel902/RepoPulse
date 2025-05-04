@@ -171,6 +171,29 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
         github.getRepositoryHealth(owner, repo)
       ]);
 
+      // Calculate activity metrics for repository health
+      const totalCommits = commitsData.reduce((sum, day) => sum + day.count, 0);
+      const commitsPerDay = totalCommits / parseInt(timeRange);
+      
+      const totalIssuesOpened = issuesData.reduce((sum, day) => sum + day.opened, 0);
+      const totalIssuesClosed = issuesData.reduce((sum, day) => sum + day.closed, 0);
+      const issueResolutionRate = totalIssuesOpened > 0 
+        ? (totalIssuesClosed / totalIssuesOpened) * 100 
+        : 0;
+      
+      const totalPRsOpened = pullRequestsData.reduce((sum, day) => sum + day.opened, 0);
+      const totalPRsClosed = pullRequestsData.reduce((sum, day) => sum + day.closed, 0);
+      const prMergeRate = totalPRsOpened > 0 
+        ? (totalPRsClosed / totalPRsOpened) * 100 
+        : 0;
+
+      // Update health data with real activity metrics
+      healthData.activityMetrics = {
+        commitFrequency: commitsPerDay,
+        issueResolutionRate,
+        prMergeRate
+      };
+
       const newData: AnalyticsData = {
         commits: commitsData,
         issues: issuesData,
@@ -184,12 +207,12 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
         languages: languagesData,
         health: healthData,
         summaryStats: {
-          commitsTotal: commitsData.reduce((sum, day) => sum + day.count, 0),
-          commitsAverage: commitsData.reduce((sum, day) => sum + day.count, 0) / parseInt(timeRange),
-          issuesOpened: issuesData.reduce((sum, day) => sum + day.opened, 0),
-          issuesClosed: issuesData.reduce((sum, day) => sum + day.closed, 0),
-          prsOpened: pullRequestsData.reduce((sum, day) => sum + day.opened, 0),
-          prsClosed: pullRequestsData.reduce((sum, day) => sum + day.closed, 0),
+          commitsTotal: totalCommits,
+          commitsAverage: commitsPerDay,
+          issuesOpened: totalIssuesOpened,
+          issuesClosed: totalIssuesClosed,
+          prsOpened: totalPRsOpened,
+          prsClosed: totalPRsClosed,
         }
       };
 
@@ -275,11 +298,11 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
   const summaryStats = useMemo(() => {
     if (!analyticsData) return null;
 
-    const commits = analyticsData.commits.reduce((sum, day) => sum + (day?.count || 0), 0);
-    const issuesOpened = analyticsData.issues.reduce((sum, day) => sum + (day?.opened || 0), 0);
-    const issuesClosed = analyticsData.issues.reduce((sum, day) => sum + (day?.closed || 0), 0);
-    const prsOpened = analyticsData.pullRequests.reduce((sum, day) => sum + (day?.opened || 0), 0);
-    const prsClosed = analyticsData.pullRequests.reduce((sum, day) => sum + (day?.closed || 0), 0);
+    const commits = analyticsData.commits.reduce((sum, day) => sum + day.count, 0);
+    const issuesOpened = analyticsData.issues.reduce((sum, day) => sum + day.opened, 0);
+    const issuesClosed = analyticsData.issues.reduce((sum, day) => sum + day.closed, 0);
+    const prsOpened = analyticsData.pullRequests.reduce((sum, day) => sum + day.opened, 0);
+    const prsClosed = analyticsData.pullRequests.reduce((sum, day) => sum + day.closed, 0);
     const totalContributors = analyticsData.totalContributors;
 
     // Calculate daily averages
@@ -911,143 +934,181 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
         </TabsContent>
 
         <TabsContent value="health" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Issue Resolution Time</CardTitle>
-                <CardDescription>Average time to resolve issues</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Average Resolution Time</p>
-                      <p className="text-2xl font-bold">
-                        {Math.round(
-                          analyticsData.issues
-                            .filter(day => day.closed > 0)
-                            .reduce((acc, day) => acc + day.closed, 0) / 
-                          analyticsData.issues.filter(day => day.closed > 0).length || 0
-                        )} days
-                      </p>
+          {/* Health Overview Card - New comprehensive card */}
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Repository Health Overview</CardTitle>
+              <CardDescription>Comprehensive health assessment of your repository</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-24 h-24">
+                      <svg viewBox="0 0 100 100" className="w-full h-full">
+                        <circle 
+                          cx="50" 
+                          cy="50" 
+                          r="45" 
+                          fill="none" 
+                          stroke="hsl(var(--muted))" 
+                          strokeWidth="10" 
+                        />
+                        <circle 
+                          cx="50" 
+                          cy="50" 
+                          r="45" 
+                          fill="none" 
+                          stroke="hsl(var(--primary))" 
+                          strokeWidth="10" 
+                          strokeDasharray={`${analyticsData.health.overallHealthScore * 2.83} 283`}
+                          strokeDashoffset="0" 
+                          transform="rotate(-90 50 50)" 
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-bold">{analyticsData.health.overallHealthScore}%</span>
+                      </div>
                     </div>
-                    <Progress value={75} className="w-[60px]" />
+                    <p className="mt-2 text-sm font-medium">Overall Health</p>
                   </div>
                   
+                  <div className="grid grid-cols-3 gap-4 flex-1">
+                    <div className="flex flex-col items-center p-3 bg-muted/30 rounded-lg">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xl font-bold">{analyticsData.health.documentationScore}%</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">Documentation</p>
+                    </div>
+                    <div className="flex flex-col items-center p-3 bg-muted/30 rounded-lg">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xl font-bold">{analyticsData.health.codeQualityScore}%</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">Code Quality</p>
+                    </div>
+                    <div className="flex flex-col items-center p-3 bg-muted/30 rounded-lg">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xl font-bold">{analyticsData.health.securityScore}%</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">Security</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Open Issues</span>
-                      <span className="font-medium">
-                        {summaryStats?.issuesOpened && summaryStats?.issuesClosed
-                          ? summaryStats.issuesOpened - summaryStats.issuesClosed
-                          : 0}
+                      <span className="text-sm font-medium">Activity Level</span>
+                      <span className="text-sm">
+                        {analyticsData.health.activityMetrics.commitFrequency < 0.5 ? 'Low' : 
+                         analyticsData.health.activityMetrics.commitFrequency < 2 ? 'Moderate' : 'High'}
                       </span>
                     </div>
                     <Progress 
-                      value={
-                        summaryStats?.issuesOpened && summaryStats?.issuesClosed
-                          ? ((summaryStats.issuesOpened - summaryStats.issuesClosed) / summaryStats.issuesOpened) * 100
-                          : 0
-                      }
+                      value={Math.min(100, analyticsData.health.activityMetrics.commitFrequency * 20)} 
                       className="h-2" 
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Issue Resolution</span>
+                      <span className="text-sm">
+                        {Math.round(analyticsData.health.activityMetrics.issueResolutionRate)}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={analyticsData.health.activityMetrics.issueResolutionRate} 
+                      className="h-2" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">PR Success Rate</span>
+                      <span className="text-sm">
+                        {Math.round(analyticsData.health.activityMetrics.prMergeRate)}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={analyticsData.health.activityMetrics.prMergeRate} 
+                      className="h-2" 
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Combined Documentation & Code Quality Card - More efficient use of space */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Documentation & Code Quality</CardTitle>
+                <CardDescription>Essential repository standards</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium mb-2">Documentation</p>
+                      <div className="space-y-1.5">
+                        {analyticsData.health.documentationStatus
+                          .filter(doc => ['README.md', 'LICENSE', 'CONTRIBUTING.md'].includes(doc.name))
+                          .map((doc) => (
+                            <div key={doc.name} className="flex items-center justify-between">
+                              <span className="text-xs">{doc.name}</span>
+                              <Badge variant={doc.status ? "default" : "secondary"} className="text-xs">
+                                {doc.status ? "✓" : "✗"}
+                              </Badge>
+                            </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-2">Code Quality</p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">Tests</span>
+                          <Badge variant={analyticsData.health.codeQuality.hasTests ? "default" : "secondary"} className="text-xs">
+                            {analyticsData.health.codeQuality.hasTests ? "✓" : "✗"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">CI/CD</span>
+                          <Badge variant={analyticsData.health.codeQuality.hasWorkflows ? "default" : "secondary"} className="text-xs">
+                            {analyticsData.health.codeQuality.hasWorkflows ? "✓" : "✗"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">Linting</span>
+                          <Badge variant={analyticsData.health.codeQuality.hasLinting ? "default" : "secondary"} className="text-xs">
+                            {analyticsData.health.codeQuality.hasLinting ? "✓" : "✗"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Activity Metrics Card - New focused card */}
             <Card>
               <CardHeader>
-                <CardTitle>Pull Request Health</CardTitle>
-                <CardDescription>PR merge rate and review status</CardDescription>
+                <CardTitle>Repository Activity</CardTitle>
+                <CardDescription>Recent activity and engagement</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Merge Success Rate</p>
-                      <p className="text-2xl font-bold">
-                        {summaryStats?.prsClosed && summaryStats?.prsOpened
-                          ? Math.round((summaryStats.prsClosed / summaryStats.prsOpened) * 100)
-                          : 0}%
-                      </p>
-                    </div>
-                    <Progress 
-                      value={
-                        summaryStats?.prsClosed && summaryStats?.prsOpened
-                          ? (summaryStats.prsClosed / summaryStats.prsOpened) * 100
-                          : 0
-                      }
-                      className="w-[60px]" 
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Open Pull Requests</span>
-                      <span className="font-medium">
-                        {summaryStats?.prsOpened && summaryStats?.prsClosed
-                          ? summaryStats.prsOpened - summaryStats.prsClosed
-                          : 0}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={
-                        summaryStats?.prsOpened && summaryStats?.prsClosed
-                          ? ((summaryStats.prsOpened - summaryStats.prsClosed) / summaryStats.prsOpened) * 100
-                          : 0
-                      }
-                      className="h-2" 
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Repository Activity Score</CardTitle>
-                <CardDescription>Overall health and activity metrics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Activity Score</p>
-                      <p className="text-2xl font-bold">
-                        {Math.round(
-                          ((summaryStats?.commits ? summaryStats.commits / parseInt(timeRange) : 0) +
-                          (summaryStats?.prsClosed && summaryStats?.prsOpened ? (summaryStats.prsClosed / summaryStats.prsOpened * 100) : 0) +
-                          (summaryStats?.issuesClosed && summaryStats?.issuesOpened ? (summaryStats.issuesClosed / summaryStats.issuesOpened * 100) : 0)) / 3
-                        )}%
-                      </p>
-                    </div>
-                    <Progress 
-                      value={Math.round(
-                        ((summaryStats?.commits ? summaryStats.commits / parseInt(timeRange) : 0) +
-                        (summaryStats?.prsClosed && summaryStats?.prsOpened ? (summaryStats.prsClosed / summaryStats.prsOpened * 100) : 0) +
-                        (summaryStats?.issuesClosed && summaryStats?.issuesOpened ? (summaryStats.issuesClosed / summaryStats.issuesOpened * 100) : 0)) / 3
-                      )} 
-                      className="w-[60px]" 
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Daily Commits</span>
                         <span className="text-sm font-medium">
-                          {summaryStats?.commits 
-                            ? (summaryStats.commits / parseInt(timeRange)).toFixed(1)
-                            : '0.0'}
+                          {analyticsData.health.activityMetrics.commitFrequency.toFixed(1)}
                         </span>
                       </div>
                       <Progress 
-                        value={
-                          summaryStats?.commits 
-                            ? (summaryStats.commits / parseInt(timeRange)) * 10
-                            : 0
-                        }
+                        value={Math.min(100, analyticsData.health.activityMetrics.commitFrequency * 20)} 
                         className="h-2" 
                       />
                     </div>
@@ -1059,45 +1120,268 @@ export function RepositoryAnalytics({ repository, accessToken }: RepositoryAnaly
                         </span>
                       </div>
                       <Progress 
-                        value={summaryStats?.totalContributors ? summaryStats.totalContributors * 10 : 0} 
+                        value={Math.min(100, summaryStats?.totalContributors ? summaryStats.totalContributors * 5 : 0)} 
                         className="h-2" 
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Open Issues</span>
+                        <span className="text-sm font-medium">
+                          {summaryStats?.issuesOpened && summaryStats?.issuesClosed
+                            ? summaryStats.issuesOpened - summaryStats.issuesClosed
+                            : 0}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Open PRs</span>
+                        <span className="text-sm font-medium">
+                          {summaryStats?.prsOpened && summaryStats?.prsClosed
+                            ? summaryStats.prsOpened - summaryStats.prsClosed
+                            : 0}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Security Status Card - Simplified */}
             <Card>
               <CardHeader>
-                <CardTitle>Documentation Status</CardTitle>
-                <CardDescription>Repository documentation health</CardDescription>
+                <CardTitle>Security Status</CardTitle>
+                <CardDescription>Repository security measures</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium">Documentation Score</p>
-                      <p className="text-2xl font-bold">85%</p>
+                      <p className="text-sm font-medium">Security Score</p>
+                      <p className="text-2xl font-bold">{analyticsData.health.securityScore}%</p>
                     </div>
-                    <Progress value={85} className="w-[60px]" />
+                    <Progress value={analyticsData.health.securityScore} className="w-[60px]" />
                   </div>
 
                   <div className="space-y-2">
-                    {[
-                      { name: 'README.md', status: healthData?.documentationStatus?.find(doc => doc.name === 'README.md')?.status ?? false },
-                      { name: 'LICENSE', status: healthData?.documentationStatus?.find(doc => doc.name === 'LICENSE')?.status ?? false },
-                      { name: 'CONTRIBUTING.md', status: healthData?.documentationStatus?.find(doc => doc.name === 'CONTRIBUTING.md')?.status ?? false },
-                      { name: 'CODE_OF_CONDUCT.md', status: healthData?.documentationStatus?.find(doc => doc.name === 'CODE_OF_CONDUCT.md')?.status ?? false }
-                    ].map((doc) => (
-                      <div key={doc.name} className="flex items-center justify-between">
-                        <span className="text-sm">{doc.name}</span>
-                        <Badge variant={doc.status ? "default" : "secondary"}>
-                          {doc.status ? "Present" : "Missing"}
-                        </Badge>
-                      </div>
-                    ))}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Security Policy</span>
+                      <Badge variant={analyticsData.health.securityStatus.hasSecurity ? "default" : "secondary"}>
+                        {analyticsData.health.securityStatus.hasSecurity ? "Present" : "Missing"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Vulnerability Scanning</span>
+                      <Badge variant={analyticsData.health.securityStatus.hasVulnerabilityPolicy ? "default" : "secondary"}>
+                        {analyticsData.health.securityStatus.hasVulnerabilityPolicy ? "Present" : "Missing"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Code Scanning</span>
+                      <Badge variant={analyticsData.health.securityStatus.hasCodeScanning ? "default" : "secondary"}>
+                        {analyticsData.health.securityStatus.hasCodeScanning ? "Present" : "Missing"}
+                      </Badge>
+                    </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Maintenance Status - New card for maintenance metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Maintenance Status</CardTitle>
+                <CardDescription>Repository maintenance health</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Average Issue Age</span>
+                      <span className="font-medium">
+                        {Math.round(
+                          analyticsData.issues
+                            .filter(day => day.closed > 0)
+                            .reduce((acc, day) => acc + day.closed, 0) / 
+                          Math.max(analyticsData.issues.filter(day => day.closed > 0).length, 1)
+                        )} days
+                      </span>
+                    </div>
+                    <Progress 
+                      value={
+                        Math.min(
+                          100,
+                          100 - Math.round(
+                            analyticsData.issues
+                              .filter(day => day.closed > 0)
+                              .reduce((acc, day) => acc + day.closed, 0) / 
+                            Math.max(analyticsData.issues.filter(day => day.closed > 0).length, 1) || 0
+                          ) * 5
+                        )
+                      } 
+                      className="h-2" 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">PR Merge Rate</span>
+                      <span className="font-medium">
+                        {summaryStats?.prsClosed && summaryStats?.prsOpened
+                          ? Math.round((summaryStats.prsClosed / summaryStats.prsOpened) * 100)
+                          : 0}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={
+                        summaryStats?.prsClosed && summaryStats?.prsOpened
+                          ? (summaryStats.prsClosed / summaryStats.prsOpened) * 100
+                          : 0
+                      }
+                      className="h-2" 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Last Updated</span>
+                      <span className="font-medium">
+                        {new Date(repository.pushed_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Health Recommendations Card - Improved and kept as is */}
+            <Card className="md:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Health Recommendations</CardTitle>
+                  <CardDescription>Actionable steps to improve repository health</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Priority:</span>
+                  <Badge variant="outline" className="text-xs">
+                    {analyticsData.health.overallHealthScore < 50 ? 'High' : 
+                     analyticsData.health.overallHealthScore < 80 ? 'Medium' : 'Low'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analyticsData.health.documentationScore < 100 && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold">Documentation Recommendations</h3>
+                      <ul className="space-y-1 text-sm">
+                        {analyticsData.health.documentationStatus
+                          .filter(doc => !doc.status)
+                          .map(doc => (
+                            <li key={doc.name} className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                              <span>
+                                Add a <span className="font-medium">{doc.name}</span> file to improve documentation.
+                              </span>
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {analyticsData.health.codeQualityScore < 100 && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold">Code Quality Recommendations</h3>
+                      <ul className="space-y-1 text-sm">
+                        {!analyticsData.health.codeQuality.hasWorkflows && (
+                          <li className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                            <span>
+                              Add CI/CD workflows in <span className="font-medium">.github/workflows</span> to automate testing and deployment.
+                            </span>
+                          </li>
+                        )}
+                        {!analyticsData.health.codeQuality.hasTests && (
+                          <li className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                            <span>
+                              Add tests to ensure code quality and prevent regressions.
+                            </span>
+                          </li>
+                        )}
+                        {!analyticsData.health.codeQuality.hasDependencyManagement && (
+                          <li className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                            <span>
+                              Add dependency management files to track and update dependencies.
+                            </span>
+                          </li>
+                        )}
+                        {!analyticsData.health.codeQuality.hasLinting && (
+                          <li className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                            <span>
+                              Add linting configuration to enforce code style and quality.
+                            </span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  {analyticsData.health.securityScore < 100 && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold">Security Recommendations</h3>
+                      <ul className="space-y-1 text-sm">
+                        {!analyticsData.health.securityStatus.hasSecurity && (
+                          <li className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                            <span>
+                              Add a <span className="font-medium">SECURITY.md</span> file to document security policies.
+                            </span>
+                          </li>
+                        )}
+                        {!analyticsData.health.securityStatus.hasVulnerabilityPolicy && (
+                          <li className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                            <span>
+                              Add a <span className="font-medium">dependabot.yml</span> file to automatically check for vulnerabilities.
+                            </span>
+                          </li>
+                        )}
+                        {!analyticsData.health.securityStatus.hasCodeScanning && (
+                          <li className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5" />
+                            <span>
+                              Enable code scanning through GitHub Actions to detect security vulnerabilities.
+                            </span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  {analyticsData.health.overallHealthScore === 100 && (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="text-center">
+                        <div className="inline-flex items-center justify-center p-2 bg-green-100 rounded-full mb-2">
+                          <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-medium">Great job! Your repository has excellent health metrics.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

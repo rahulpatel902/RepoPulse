@@ -106,6 +106,26 @@ export interface RepositoryHealth {
         name: string;
         key: string;
     } | null;
+    codeQuality: {
+        hasWorkflows: boolean;
+        hasTests: boolean;
+        hasDependencyManagement: boolean;
+        hasLinting: boolean;
+    };
+    securityStatus: {
+        hasSecurity: boolean;
+        hasVulnerabilityPolicy: boolean;
+        hasCodeScanning: boolean;
+    };
+    activityMetrics: {
+        commitFrequency: number;
+        issueResolutionRate: number;
+        prMergeRate: number;
+    };
+    documentationScore: number;
+    codeQualityScore: number;
+    securityScore: number;
+    overallHealthScore: number;
 }
 
 export interface TimeRangeLimit {
@@ -546,27 +566,99 @@ export class GitHubAPI {
     }
 
     async getRepositoryHealth(owner: string, repo: string): Promise<RepositoryHealth> {
-        const [repoData, contents] = await Promise.all([
+        const [repoData, contents, workflows] = await Promise.all([
             this.fetchWithCache(`/repos/${owner}/${repo}`),
-            this.fetchWithCache(`/repos/${owner}/${repo}/contents`)
+            this.fetchWithCache(`/repos/${owner}/${repo}/contents`),
+            this.fetchWithCache(`/repos/${owner}/${repo}/contents/.github/workflows`).catch(() => [])
         ]);
 
+        // Get all files as a set for easy checking
         const files = new Set(contents.map((file: any) => file.name.toLowerCase()));
+        const allPaths = new Set(contents.map((file: any) => {
+            if (file.type === 'file') return file.path.toLowerCase();
+            return '';
+        }).filter(Boolean));
         
+        // Check for various test directories and files
+        const hasTestDir = contents.some((item: any) => 
+            item.type === 'dir' && ['test', 'tests', '__tests__', 'spec', 'specs'].includes(item.name.toLowerCase())
+        );
+        
+        // Documentation files to check
         const documentationFiles = [
-            { name: "README.md", path: "readme.md" },
-            { name: "CONTRIBUTING.md", path: "contributing.md" },
-            { name: "LICENSE", path: "license" },
-            { name: "CODE_OF_CONDUCT.md", path: "code_of_conduct.md" },
-            { name: "SECURITY.md", path: "security.md" },
-            { name: "CHANGELOG.md", path: "changelog.md" }
+            { name: "README.md", path: "readme.md", weight: 0.4 },
+            { name: "CONTRIBUTING.md", path: "contributing.md", weight: 0.15 },
+            { name: "LICENSE", path: "license", weight: 0.15 },
+            { name: "CODE_OF_CONDUCT.md", path: "code_of_conduct.md", weight: 0.1 },
+            { name: "SECURITY.md", path: "security.md", weight: 0.1 },
+            { name: "CHANGELOG.md", path: "changelog.md", weight: 0.1 }
         ];
 
+        // Check documentation files
         const documentationStatus = documentationFiles.map(doc => ({
             name: doc.name,
             path: doc.path,
             status: files.has(doc.path.toLowerCase())
         }));
+
+        // Calculate documentation score
+        const docScore = documentationFiles.reduce((score, doc) => {
+            return score + (files.has(doc.path.toLowerCase()) ? doc.weight : 0);
+        }, 0) * 100;
+
+        // Check for dependency management files
+        const dependencyFiles = ['package.json', 'requirements.txt', 'gemfile', 'build.gradle', 'pom.xml', 'composer.json', 'cargo.toml'];
+        const hasDependencyManagement = dependencyFiles.some(file => files.has(file.toLowerCase()));
+
+        // Check for linting configuration
+        const lintingFiles = ['.eslintrc', '.eslintrc.js', '.eslintrc.json', '.pylintrc', '.rubocop.yml', 'tslint.json', '.stylelintrc'];
+        const hasLinting = lintingFiles.some(file => 
+            files.has(file.toLowerCase()) || 
+            allPaths.has(file.toLowerCase())
+        );
+
+        // Check for security files and configurations
+        const securityFiles = ['security.md', 'security.txt', '.github/security.md'];
+        const hasSecurity = securityFiles.some(file => 
+            files.has(file.toLowerCase()) || 
+            allPaths.has(file.toLowerCase())
+        );
+
+        // Check for vulnerability policy
+        const hasVulnerabilityPolicy = allPaths.has('.github/dependabot.yml') || 
+                                  allPaths.has('.github/dependabot.yaml');
+
+        // Check for code scanning
+        const hasCodeScanning = Array.isArray(workflows) && 
+                           workflows.some((file: any) => 
+                               file.name.toLowerCase().includes('codeql') || 
+                               file.name.toLowerCase().includes('scan')
+                           );
+
+        // Calculate code quality score
+        const hasWorkflows = Array.isArray(workflows) && workflows.length > 0;
+        const hasTests = hasTestDir || files.has('jest.config.js') || files.has('karma.conf.js');
+        
+        const codeQualityScore = [
+            hasWorkflows ? 25 : 0,
+            hasTests ? 30 : 0,
+            hasDependencyManagement ? 25 : 0,
+            hasLinting ? 20 : 0
+        ].reduce((a, b) => a + b, 0);
+
+        // Calculate security score
+        const securityScore = [
+            hasSecurity ? 40 : 0,
+            hasVulnerabilityPolicy ? 30 : 0,
+            hasCodeScanning ? 30 : 0
+        ].reduce((a, b) => a + b, 0);
+
+        // Calculate overall health score
+        const overallHealthScore = Math.round(
+            (docScore * 0.3) + 
+            (codeQualityScore * 0.4) + 
+            (securityScore * 0.3)
+        );
 
         return {
             documentationStatus,
@@ -574,7 +666,27 @@ export class GitHubAPI {
             hasIssues: repoData.has_issues,
             hasProjects: repoData.has_projects,
             defaultBranch: repoData.default_branch,
-            license: repoData.license
+            license: repoData.license,
+            codeQuality: {
+                hasWorkflows,
+                hasTests,
+                hasDependencyManagement,
+                hasLinting
+            },
+            securityStatus: {
+                hasSecurity,
+                hasVulnerabilityPolicy,
+                hasCodeScanning
+            },
+            activityMetrics: {
+                commitFrequency: 0, // Will be populated from analytics data
+                issueResolutionRate: 0,
+                prMergeRate: 0
+            },
+            documentationScore: Math.round(docScore),
+            codeQualityScore,
+            securityScore,
+            overallHealthScore
         };
     }
 
@@ -586,66 +698,76 @@ export class GitHubAPI {
                 per_page: '1'
             }).toString();
 
-            const response = await fetch(`${this.baseUrl}${endpoint}?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${this.accessToken}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'X-GitHub-Api-Version': '2022-11-28'
+            // Use the fetchWithCache method instead of direct fetch to leverage caching and error handling
+            try {
+                const commits = await this.fetchWithCache(`${endpoint}?${params}`);
+                
+                if (!Array.isArray(commits) || commits.length === 0) {
+                    console.warn(`No commits found for branch ${branch}`);
+                    return { date: new Date().toISOString(), count: 0 };
                 }
-            });
 
-            if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+                const commit = commits[0];
+                if (!commit?.commit?.author?.date) {
+                    console.warn(`Invalid commit data structure for branch ${branch}`);
+                    return { date: new Date().toISOString(), count: 0 };
+                }
+
+                return {
+                    date: commit.commit.author.date,
+                    count: 1
+                };
+            } catch (error) {
+                console.error(`Error fetching commits for branch ${branch}:`, error);
+                return { date: new Date().toISOString(), count: 0 };
             }
-
-            const commits = await response.json();
-            
-            if (!Array.isArray(commits) || commits.length === 0) {
-                console.warn(`No commits found for branch ${branch}`);
-                return { date: '', count: 0 };
-            }
-
-            const commit = commits[0];
-            if (!commit?.commit?.author?.date) {
-                console.warn(`Invalid commit data structure for branch ${branch}`);
-                return { date: '', count: 0 };
-            }
-
-            return {
-                date: commit.commit.author.date,
-                count: 1
-            };
         } catch (error) {
-            console.error(`Error fetching activity for branch ${branch}:`, error);
-            return { date: '', count: 0 };
+            console.error(`Error in getBranchActivity for branch ${branch}:`, error);
+            return { date: new Date().toISOString(), count: 0 };
         }
     }
 
     async getBranches(owner: string, repo: string): Promise<Branch[]> {
         try {
-            const endpoint = `/repos/${owner}/${repo}/branches`;
-            const branches = await this.fetchWithCache(endpoint);
+            // First try to fetch branches
+            let branches: Branch[] = [];
+            try {
+                const endpoint = `/repos/${owner}/${repo}/branches`;
+                branches = await this.fetchWithCache(endpoint);
+            } catch (error) {
+                console.error('Error fetching branches:', error);
+                return []; // Return empty array instead of throwing
+            }
             
-            // Get activity data for each branch in parallel, with error handling
-            const branchesWithActivity = await Promise.all(
-                branches.map(async (branch: Branch) => {
-                    try {
-                        const activity = await this.getBranchActivity(owner, repo, branch.name);
-                        return {
-                            ...branch,
-                            lastCommit: activity
-                        };
-                    } catch (error) {
-                        console.error(`Error processing branch ${branch.name}:`, error);
-                        return branch;
-                    }
-                })
-            );
+            // If we got branches, try to get activity data
+            if (Array.isArray(branches) && branches.length > 0) {
+                // Get activity data for each branch, but handle failures gracefully
+                const branchesWithActivity = await Promise.all(
+                    branches.map(async (branch: Branch) => {
+                        try {
+                            const activity = await this.getBranchActivity(owner, repo, branch.name);
+                            return {
+                                ...branch,
+                                lastCommit: activity
+                            };
+                        } catch (error) {
+                            console.error(`Error processing branch ${branch.name}:`, error);
+                            // Return branch without activity data rather than failing
+                            return {
+                                ...branch,
+                                lastCommit: { date: new Date().toISOString(), count: 0 }
+                            };
+                        }
+                    })
+                );
+                
+                return branchesWithActivity;
+            }
             
-            return branchesWithActivity;
+            return [];
         } catch (error) {
-            console.error('Error fetching branches:', error);
-            throw error;
+            console.error('Error in getBranches:', error);
+            return []; // Return empty array instead of throwing
         }
     }
 }
