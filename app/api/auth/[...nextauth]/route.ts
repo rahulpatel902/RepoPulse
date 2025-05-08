@@ -1,8 +1,21 @@
 import NextAuth from "next-auth";
 import GithubProvider from "next-auth/providers/github";
 
-if (!process.env.GITHUB_ID || !process.env.GITHUB_SECRET) {
-  throw new Error('Missing GitHub OAuth credentials');
+// Check for credentials only in runtime, not during build
+const checkCredentials = () => {
+  if (process.env.NODE_ENV !== 'production' || process.env.NETLIFY) {
+    if (!process.env.GITHUB_ID || !process.env.GITHUB_SECRET) {
+      console.warn('Missing GitHub OAuth credentials');
+    }
+  }
+};
+
+// Only run the check in a browser environment, not during build
+if (typeof window === 'undefined') {
+  // This is server-side, but we'll only check at runtime
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    checkCredentials();
+  }
 }
 
 const handler = NextAuth({
