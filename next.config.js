@@ -10,7 +10,7 @@ const nextConfig = {
   },
   // Environment variables that will be available at build time
   env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://repo-pulse.netlify.app',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://repopulse.netlify.app',
     GITHUB_ID: process.env.GITHUB_ID || 'Ov23ligfA8DnJJnelCtg',
     GITHUB_SECRET: process.env.GITHUB_SECRET || '4cfc398eda659423482b675fd408f963be51ca6c',
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'Gy8oHg/RwHw/Q/bHbXlQi9K6RZHhEXPpRwUMXkFQwQE='
